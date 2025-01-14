@@ -21,14 +21,16 @@
 
 void initializePeriodicGrid(float *periodic_grid, int n, int m)
 {
+    //TODO: y doesn't change in y_direction, but in x direction
     float dx = (PERIODIC_END - PERIODIC_START) / (n - 1);
     float dy = (PERIODIC_END - PERIODIC_START) / (m - 1);
-    for (int y_i = 0; y_i < m; ++y_i)
+    for (int y_i = 0; y_i < m; y_i++)
     {
-        for (int x_i = 1; x_i < n; ++x_i)
+        for (int i = 1; i < 2*n; i+=2)
         {
-            periodic_grid[y_i * n + x_i] = PERIODIC_START + y_i * dy; //y component 
-            periodic_grid[y_i * n + x_i - 1] = PERIODIC_START + x_i * dx; //x component 
+            int x_i = i - 1;
+            periodic_grid[y_i * n + i] = PERIODIC_START + y_i * dy; //y component 
+            periodic_grid[y_i * n + i - 1] = PERIODIC_START + x_i * dx; //x component 
         }
     }
 }
@@ -60,12 +62,12 @@ int main()
 
     //copy data to device
     //CHECK_CUDA(cudaMemcpy(d_curr, curr, N * M * sizeof(float), cudaMemcpyHostToDevice));
-    std::cout << "first rows of periodic grid:" << std::endl;
+    std::cout << "first of periodic grid:" << std::endl;
     for (int y_i = 0; y_i < 5; ++y_i)
     {
         for (int x_i = 1; x_i < 10; x_i+=2)
         {
-            std::cout << periodic_grid[x_i-1] << "," << periodic_grid[x_i] <<" ";
+            std::cout << periodic_grid[y_i * N + x_i-1] << "," << periodic_grid[y_i * N + x_i] <<" ";
         }
         std::cout << std::endl;
     }
