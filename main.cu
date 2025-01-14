@@ -3,6 +3,7 @@
 #include <cmath>
 #include <numeric>
 #include <cuda_runtime.h>
+#include "gnuplot-iostream.h"
 #define N 128               // Grid size X
 #define M 128              // Grid size Y
 #define ITERATIONS 100000    // Number of iterations
@@ -71,5 +72,36 @@ int main()
         }
         std::cout << std::endl;
     }
+    //plot periodic grid 
+    //std::vector<std::vector<std::pair<float, float>>> periodic_grid_plot;
+    //for (int y_i = 0; y_i < M; ++y_i)
+    //{
+        //std::vector<std::pair<float,float>> row;
+        //for (int i = 1; i < 2*N; i+=2)
+        //{
+            //std::pair p = std::make_pair(periodic_grid[y_i * N + i-1], periodic_grid[y_i * N + i]);
+            //row.emplace_back(p);
+        //}
+        //periodic_grid_plot.push_back(row);
+    //}
+    std::ofstream data_file("periodic_grid_data.dat");
+    for (int y_i = 0; y_i < M; ++y_i)
+    {
+        for (int i = 0; i < 2*N; i+=2)
+        {
+            float x = periodic_grid[y_i * N + i-1];
+            float y = periodic_grid[y_i * N + i];
+            data_file << x << " " << y << " " << 1.0 << "\n";
+        } 
+        data_file << "\n";
+    }
+    data_file.close();
+    Gnuplot gp;
+    gp << "set terminal png size 800,600\n"; // Use PNG terminal with specified size
+    gp << "set output 'periodic_grid_plot.png'\n"; // Output file
+    gp << "set view map\n"; // 2D projection
+    gp << "set pm3d at b\n"; // Enable color mapping
+    gp << "splot 'periodic_grid_data.dat' using 1:2:3 with pm3d\n"; // Plot with color mapping
+    //gp.send2d(periodic_grid_plot);          // Send data
     free(periodic_grid);
 }

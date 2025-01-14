@@ -8,7 +8,7 @@ CXXFLAGS = -O2 -std=c++17
 INCLUDE_DIRS = -I$(CUDA_HOME)/include
 
 # Libraries
-LIBS = -L$(CUDA_HOME)/lib64 -lcudart -lcuda
+LIBS = -L$(CUDA_HOME)/lib64 -lcudart -lcuda -lboost_iostreams -lboost_system -lboost_filesystem
 
 # Flags for compiling
 # NVCC_FLAGS = -arch=sm_80 -lineinfo -Xcompiler $(CXXFLAGS)
