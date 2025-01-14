@@ -4,11 +4,15 @@
 #include <numeric>
 #include <cuda_runtime.h>
 #include "gnuplot-iostream.h"
+#include "plotting.h"
+
 #define N 128               // Grid size X
 #define M 128              // Grid size Y
 #define ITERATIONS 100000    // Number of iterations
 #define PERIODIC_START 0.0f
 #define PERIODIC_END 2 * M_PI
+#define DIFFUSIVITY 0.1f
+#define TIMESTEP 0.5f
 
 #define CHECK_CUDA(call)                                               \
     if ((call) != cudaSuccess)                                         \
@@ -30,8 +34,22 @@ void initializePeriodicGrid(float *periodic_grid, int n, int m)
         for (int i = 1; i < 2*n; i+=2)
         {
             int x_i = i / 2;
-            periodic_grid[y_i * (2*n) + i] = PERIODIC_START + y_i * dy; //y component 
             periodic_grid[y_i * (2*n) + i - 1] = PERIODIC_START + x_i * dx; //x component 
+            periodic_grid[y_i * (2*n) + i] = PERIODIC_START + y_i * dy; //y component 
+        }
+    }
+}
+
+void initilizeVelocityGrid(float *velocity_grid,float *periodic_grid,int n ,int m){
+    for (int y_i = 0; y_i < m; y_i++)
+    {
+        for (int i = 1; i < 2*n; i+=2)
+        {
+            float x = periodic_grid[y_i * (2*n) + i - 1];
+            float y = periodic_grid[y_i * (2*n) + i];
+
+            velocity_grid[y_i * (2*n) + i - 1] = sin(x) * cos(y); //u component 
+            velocity_grid[y_i * (2*n) + i] = -1.0f * cos(x) * sin(y); //v component 
         }
     }
 }
@@ -40,13 +58,14 @@ void initializePeriodicGrid(float *periodic_grid, int n, int m)
 int main()
 {
     float *periodic_grid = (float *)malloc(N * M * 2 * sizeof(float));
+    float *velocity_grid = (float *)malloc(N * M * 2 * sizeof(float));
     //float *curr = (float *)malloc(N * M * 2 * sizeof(float));
     //float *next = (float *)malloc(N * M * 2 * sizeof(float));
 
 
     // Check for allocation failures
     //if (curr == NULL || next == NULL)
-    if (periodic_grid == NULL)
+    if (periodic_grid == NULL || velocity_grid == NULL)
     {
         std::cerr << "Memory allocation failed!" << std::endl;
         return EXIT_FAILURE;
@@ -56,6 +75,7 @@ int main()
     //initializePeriodicGrid(curr, N, M);
     //initializePeriodicGrid(next, N, M);
     initializePeriodicGrid(periodic_grid,N,M);
+    initilizeVelocityGrid(velocity_grid,periodic_grid,N,M);
 
     //float *d_curr;
     //allocate memory on device    
@@ -72,51 +92,7 @@ int main()
         }
         std::cout << std::endl;
     }
-    //plot periodic grid 
-    //std::vector<std::vector<std::pair<float, float>>> periodic_grid_plot;
-    //for (int y_i = 0; y_i < M; ++y_i)
-    //{
-        //std::vector<std::pair<float,float>> row;
-        //for (int i = 1; i < 2*N; i+=2)
-        //{
-            //std::pair p = std::make_pair(periodic_grid[y_i * N + i-1], periodic_grid[y_i * N + i]);
-            //row.emplace_back(p);
-        //}
-        //periodic_grid_plot.push_back(row);
-    //}
-    std::ofstream data_file_x("periodic_grid_data_x.dat");
-    std::ofstream data_file_y("periodic_grid_data_y.dat");
-    for (int y_i = 0; y_i < M; ++y_i)
-    {
-        for (int i = 0; i < 2*N; i+=2)
-        {
-            float x = periodic_grid[y_i * (2*N) + i-1];
-            float y = periodic_grid[y_i * (2*N) + i];
-            data_file_x << i/2 << " " << y_i << " " << x << "\n";
-            data_file_y << i/2 << " " << y_i << " " << y << "\n";
-        } 
-        data_file_x << "\n";
-        data_file_y << "\n";
-    }
-    data_file_x.close();
-    data_file_y.close();
-    Gnuplot gp;
-    gp << "set terminal png size 800,600\n"; // Use PNG terminal with specified size
-    gp << "set output 'periodic_grid_plot_x.png'\n"; // Output file
-    gp << "set view map\n"; // 2D projection
-    gp << "set pm3d at b\n"; // Enable color mapping
-    gp << "set xrange [0:"<<M-1<<"]\n";
-    gp << "set yrange [0:"<<N-1<<"]\n";
-    gp << "splot 'periodic_grid_data_x.dat' using 1:2:3 with pm3d\n"; // Plot with color mapping
-
-    Gnuplot gp_y;
-    gp_y << "set terminal png size 800,600\n"; // Use PNG terminal with specified size
-    gp_y << "set output 'periodic_grid_plot_y.png'\n"; // Output file
-    gp_y << "set view map\n"; // 2D projection
-    gp_y << "set pm3d at b\n"; // Enable color mapping
-    gp_y << "set xrange [0:"<<M-1<<"]\n";
-    gp_y << "set yrange [0:"<<N-1<<"]\n";
-    gp_y << "splot 'periodic_grid_data_y.dat' using 1:2:3 with pm3d\n"; // Plot with color mapping
-    //gp.send2d(periodic_grid_plot);          // Send data
+    plotPeriodicGrid(periodic_grid, N, M);
+    plotVelocityGrid(periodic_grid, velocity_grid, N, M, PERIODIC_START, PERIODIC_END);
     free(periodic_grid);
 }
