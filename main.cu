@@ -29,9 +29,9 @@ void initializePeriodicGrid(float *periodic_grid, int n, int m)
     {
         for (int i = 1; i < 2*n; i+=2)
         {
-            int x_i = i - 1;
-            periodic_grid[y_i * n + i] = PERIODIC_START + y_i * dy; //y component 
-            periodic_grid[y_i * n + i - 1] = PERIODIC_START + x_i * dx; //x component 
+            int x_i = i / 2;
+            periodic_grid[y_i * (2*n) + i] = PERIODIC_START + y_i * dy; //y component 
+            periodic_grid[y_i * (2*n) + i - 1] = PERIODIC_START + x_i * dx; //x component 
         }
     }
 }
@@ -68,7 +68,7 @@ int main()
     {
         for (int x_i = 1; x_i < 10; x_i+=2)
         {
-            std::cout << periodic_grid[y_i * N + x_i-1] << "," << periodic_grid[y_i * N + x_i] <<" ";
+            std::cout << periodic_grid[y_i * (2*N) + x_i-1] << "," << periodic_grid[y_i * (2*N) + x_i] <<" ";
         }
         std::cout << std::endl;
     }
@@ -84,24 +84,39 @@ int main()
         //}
         //periodic_grid_plot.push_back(row);
     //}
-    std::ofstream data_file("periodic_grid_data.dat");
+    std::ofstream data_file_x("periodic_grid_data_x.dat");
+    std::ofstream data_file_y("periodic_grid_data_y.dat");
     for (int y_i = 0; y_i < M; ++y_i)
     {
         for (int i = 0; i < 2*N; i+=2)
         {
-            float x = periodic_grid[y_i * N + i-1];
-            float y = periodic_grid[y_i * N + i];
-            data_file << x << " " << y << " " << 1.0 << "\n";
+            float x = periodic_grid[y_i * (2*N) + i-1];
+            float y = periodic_grid[y_i * (2*N) + i];
+            data_file_x << i/2 << " " << y_i << " " << x << "\n";
+            data_file_y << i/2 << " " << y_i << " " << y << "\n";
         } 
-        data_file << "\n";
+        data_file_x << "\n";
+        data_file_y << "\n";
     }
-    data_file.close();
+    data_file_x.close();
+    data_file_y.close();
     Gnuplot gp;
     gp << "set terminal png size 800,600\n"; // Use PNG terminal with specified size
-    gp << "set output 'periodic_grid_plot.png'\n"; // Output file
+    gp << "set output 'periodic_grid_plot_x.png'\n"; // Output file
     gp << "set view map\n"; // 2D projection
     gp << "set pm3d at b\n"; // Enable color mapping
-    gp << "splot 'periodic_grid_data.dat' using 1:2:3 with pm3d\n"; // Plot with color mapping
+    gp << "set xrange [0:"<<M-1<<"]\n";
+    gp << "set yrange [0:"<<N-1<<"]\n";
+    gp << "splot 'periodic_grid_data_x.dat' using 1:2:3 with pm3d\n"; // Plot with color mapping
+
+    Gnuplot gp_y;
+    gp_y << "set terminal png size 800,600\n"; // Use PNG terminal with specified size
+    gp_y << "set output 'periodic_grid_plot_y.png'\n"; // Output file
+    gp_y << "set view map\n"; // 2D projection
+    gp_y << "set pm3d at b\n"; // Enable color mapping
+    gp_y << "set xrange [0:"<<M-1<<"]\n";
+    gp_y << "set yrange [0:"<<N-1<<"]\n";
+    gp_y << "splot 'periodic_grid_data_y.dat' using 1:2:3 with pm3d\n"; // Plot with color mapping
     //gp.send2d(periodic_grid_plot);          // Send data
     free(periodic_grid);
 }
