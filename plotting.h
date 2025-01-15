@@ -4,6 +4,11 @@
 #include <iostream>
 #include <fstream>
 #include <gnuplot-iostream.h>
+#include <string>
+#include <filesystem>
+#include <chrono>
+#include <iomanip>
+#include <sstream>
 
 void plotPeriodicGrid(float *periodic_grid, int N, int M) {
     std::ofstream data_file_x("periodic_grid_data_x.dat");
@@ -34,8 +39,9 @@ void plotPeriodicGrid(float *periodic_grid, int N, int M) {
     gp << "plot 'periodic_grid_data_y.dat' using 1:2:3 with image\n";
 }
 
-void plotVelocityGrid(float *periodic_grid, float *velocity_grid, int N, int M,float periodic_start, float periodic_end, std::string plot_name) {
-    std::ofstream data_file(plot_name + ".dat");
+void plotVelocityGrid(float *periodic_grid, float *velocity_grid, int N, int M, float periodic_start, float periodic_end, const std::string& plotname, const std::string& dirName) {
+    std::string data_file_path(dirName + "/uv_" + plotname + ".dat");
+    std::ofstream data_file(data_file_path);
     for (int y_i = 0; y_i < M; ++y_i) {
         for (int i = 0; i < 2 * N; i += 2) {
             float x = periodic_grid[y_i * (2 * N) + i];
@@ -50,10 +56,24 @@ void plotVelocityGrid(float *periodic_grid, float *velocity_grid, int N, int M,f
 
     Gnuplot gp;
     gp << "set terminal png size 800,600\n"; // Use PNG terminal with specified size
-    gp << "set xrange ["<<periodic_start<<":" << periodic_end << "]\n"; // Set x-axis range
-    gp << "set yrange ["<<periodic_start<<":" << periodic_end << "]\n"; // Set y-axis range
-    gp << "set output '"<< plot_name << ".png'\n"; // Output file
-    gp << "plot '"<< plot_name <<".dat' using 1:2:3:4 with vectors head filled lt 2\n";
+    gp << "set xrange [" << periodic_start << ":" << periodic_end << "]\n"; // Set x-axis range
+    gp << "set yrange [" << periodic_start << ":" << periodic_end << "]\n"; // Set y-axis range
+    gp << "set output '" << dirName << "/" << plotname << ".png'\n"; // Output file
+    gp << "plot '"<< data_file_path <<"' using 1:2:3:4 with vectors head filled lt 2\n";
 }
 
+std::string getCurrentTimestamp() {
+    auto now = std::chrono::system_clock::now();
+    auto in_time_t = std::chrono::system_clock::to_time_t(now);
+    std::stringstream ss;
+    ss << std::put_time(std::localtime(&in_time_t), "%Y-%m-%d_%H-%M-%S");
+    return ss.str();
+}
+
+std::string createTimestampedDirectory() {
+    std::string timestamp = getCurrentTimestamp();
+    std::string dirName = "plots_" + timestamp;
+    std::filesystem::create_directory(dirName);
+    return dirName;
+}
 #endif // PLOTTING_H

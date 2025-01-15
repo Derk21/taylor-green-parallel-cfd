@@ -58,6 +58,8 @@ void initilizeVelocityGrid(float *velocity_grid,float *periodic_grid,int n ,int 
 void diffuseExplicit(float *velocity_grid,float *velocity_grid_next, int n , int m){
     float dx = (PERIODIC_END - PERIODIC_START) / (n - 1);
     float dy = (PERIODIC_END - PERIODIC_START) / (m - 1);
+
+    //TODO: Boundary 
     for (int y_i = 0; y_i < m; y_i++)
     {
         for (int i = 1; i < 2*n; i+=2)
@@ -116,23 +118,26 @@ int main()
 
     //copy data to device
     //CHECK_CUDA(cudaMemcpy(d_curr, curr, N * M * sizeof(float), cudaMemcpyHostToDevice));
-    std::cout << "first of periodic grid:" << std::endl;
-    for (int y_i = 0; y_i < 5; ++y_i)
-    {
-        for (int x_i = 1; x_i < 10; x_i+=2)
-        {
-            std::cout << periodic_grid[y_i * (2*N) + x_i-1] << "," << periodic_grid[y_i * (2*N) + x_i] <<" ";
-        }
-        std::cout << std::endl;
-    }
+    std::string dirName = createTimestampedDirectory();
     plotPeriodicGrid(periodic_grid, N, M);
-    plotVelocityGrid(periodic_grid, velocity_grid, N, M, PERIODIC_START, PERIODIC_END, std::string("velocity_start"));
-    for (int i = 0; i < ITERATIONS; i++){
+    std::string plot_name("velocity_0");
+    plotVelocityGrid(periodic_grid, velocity_grid, N, M, PERIODIC_START, PERIODIC_END, plot_name, dirName);
+    for (int i = 1; i < ITERATIONS+1; i++){
         diffuseExplicit(velocity_grid,velocity_grid_next,N,M);
         std::swap(velocity_grid,velocity_grid_next);
+        plot_name = "velocity_" + std::to_string(i);
+        plotVelocityGrid(periodic_grid, velocity_grid, N, M, PERIODIC_START, PERIODIC_END, plot_name,dirName);
     }
 
-    plotVelocityGrid(periodic_grid, velocity_grid, N, M, PERIODIC_START, PERIODIC_END, std::string("velocity_end"));
+
+    //for (int y_i = 0; y_i < 5; ++y_i)
+    //{
+        //for (int x_i = 1; x_i < 10; x_i+=2)
+        //{
+            //std::cout << periodic_grid[y_i * (2*N) + x_i-1] << "," << periodic_grid[y_i * (2*N) + x_i] <<" ";
+        //}
+        //std::cout << std::endl;
+    //}
 
     free(periodic_grid);
     free(velocity_grid);
