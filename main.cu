@@ -6,13 +6,13 @@
 #include "gnuplot-iostream.h"
 #include "plotting.h"
 
-#define N 128               // Grid size X
-#define M 128              // Grid size Y
-#define ITERATIONS 100000    // Number of iterations
+#define N 64               // Grid size X
+#define M 64              // Grid size Y
+#define ITERATIONS 100    // Number of iterations
 #define PERIODIC_START 0.0f
 #define PERIODIC_END 2 * M_PI
 #define DIFFUSIVITY 0.1f
-#define TIMESTEP 0.5f
+#define TIMESTEP 1e-3f
 
 #define CHECK_CUDA(call)                                               \
     if ((call) != cudaSuccess)                                         \
@@ -40,7 +40,8 @@ void initializePeriodicGrid(float *periodic_grid, int n, int m)
     }
 }
 
-void initilizeVelocityGrid(float *velocity_grid,float *periodic_grid,int n ,int m){
+void initilizeVelocityGrid(float *velocity_grid,float *periodic_grid,int n ,int m)
+{
     for (int y_i = 0; y_i < m; y_i++)
     {
         for (int i = 1; i < 2*n; i+=2)
@@ -54,11 +55,44 @@ void initilizeVelocityGrid(float *velocity_grid,float *periodic_grid,int n ,int 
     }
 }
 
+void diffuseExplicit(float *velocity_grid,float *velocity_grid_next, int n , int m){
+    float dx = (PERIODIC_END - PERIODIC_START) / (n - 1);
+    float dy = (PERIODIC_END - PERIODIC_START) / (m - 1);
+    for (int y_i = 0; y_i < m; y_i++)
+    {
+        for (int i = 1; i < 2*n; i+=2)
+        {   
+            int u_i = i-1;
+            int v_i = i;
+
+            float u = velocity_grid[y_i * (2*n) + u_i];
+            float v = velocity_grid[y_i * (2*n) + v_i];
+
+            float u_left = velocity_grid[y_i * (2*n) + u_i - 2];
+            float u_right = velocity_grid[y_i * (2*n) + u_i + 2];
+            float u_up = velocity_grid[(y_i + 1) * (2*n) + u_i];
+            float u_down = velocity_grid[(y_i - 1) * (2*n) + u_i];
+
+            float v_left = velocity_grid[y_i * (2*n) + v_i - 2];
+            float v_right = velocity_grid[y_i * (2*n) + v_i + 2];
+            float v_up = velocity_grid[(y_i + 1) * (2*n) + v_i];
+            float v_down = velocity_grid[(y_i - 1) * (2*n) + v_i];
+
+            float u_diffusion = DIFFUSIVITY * (u_right - 2 * u + u_left) / (dx * dx) + DIFFUSIVITY * (u_up - 2 * u + u_down) / (dy * dy);
+            float v_diffusion = DIFFUSIVITY * (v_right - 2 * v + v_left) / (dx * dx) + DIFFUSIVITY * (v_up - 2 * v + v_down) / (dy * dy);
+
+            velocity_grid_next[y_i * (2*n) + u_i] = u + TIMESTEP * u_diffusion;
+            velocity_grid_next[y_i * (2*n) + v_i] = v + TIMESTEP * v_diffusion;
+        }
+    }
+}
+
 
 int main()
 {
     float *periodic_grid = (float *)malloc(N * M * 2 * sizeof(float));
     float *velocity_grid = (float *)malloc(N * M * 2 * sizeof(float));
+    float *velocity_grid_next = (float *)malloc(N * M * 2 * sizeof(float));
     //float *curr = (float *)malloc(N * M * 2 * sizeof(float));
     //float *next = (float *)malloc(N * M * 2 * sizeof(float));
 
@@ -76,7 +110,6 @@ int main()
     //initializePeriodicGrid(next, N, M);
     initializePeriodicGrid(periodic_grid,N,M);
     initilizeVelocityGrid(velocity_grid,periodic_grid,N,M);
-
     //float *d_curr;
     //allocate memory on device    
     //CHECK_CUDA(cudaMalloc(&d_curr, N * M * sizeof(float)));
@@ -93,6 +126,15 @@ int main()
         std::cout << std::endl;
     }
     plotPeriodicGrid(periodic_grid, N, M);
-    plotVelocityGrid(periodic_grid, velocity_grid, N, M, PERIODIC_START, PERIODIC_END);
+    plotVelocityGrid(periodic_grid, velocity_grid, N, M, PERIODIC_START, PERIODIC_END, std::string("velocity_start"));
+    for (int i = 0; i < ITERATIONS; i++){
+        diffuseExplicit(velocity_grid,velocity_grid_next,N,M);
+        std::swap(velocity_grid,velocity_grid_next);
+    }
+
+    plotVelocityGrid(periodic_grid, velocity_grid, N, M, PERIODIC_START, PERIODIC_END, std::string("velocity_end"));
+
     free(periodic_grid);
+    free(velocity_grid);
+    free(velocity_grid_next);
 }

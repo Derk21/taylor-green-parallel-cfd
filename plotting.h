@@ -34,8 +34,8 @@ void plotPeriodicGrid(float *periodic_grid, int N, int M) {
     gp << "plot 'periodic_grid_data_y.dat' using 1:2:3 with image\n";
 }
 
-void plotVelocityGrid(float *periodic_grid, float *velocity_grid, int N, int M,float periodic_start, float periodic_end) {
-    std::ofstream data_file("vector_data.dat");
+void plotVelocityGrid(float *periodic_grid, float *velocity_grid, int N, int M,float periodic_start, float periodic_end, std::string plot_name) {
+    std::ofstream data_file(plot_name + ".dat");
     for (int y_i = 0; y_i < M; ++y_i) {
         for (int i = 0; i < 2 * N; i += 2) {
             float x = periodic_grid[y_i * (2 * N) + i];
@@ -52,8 +52,8 @@ void plotVelocityGrid(float *periodic_grid, float *velocity_grid, int N, int M,f
     gp << "set terminal png size 800,600\n"; // Use PNG terminal with specified size
     gp << "set xrange ["<<periodic_start<<":" << periodic_end << "]\n"; // Set x-axis range
     gp << "set yrange ["<<periodic_start<<":" << periodic_end << "]\n"; // Set y-axis range
-    gp << "set output 'vector_plot.png'\n"; // Output file
-    gp << "plot 'vector_data.dat' using 1:2:3:4 with vectors head filled lt 2\n";
+    gp << "set output '"<< plot_name << ".png'\n"; // Output file
+    gp << "plot '"<< plot_name <<".dat' using 1:2:3:4 with vectors head filled lt 2\n";
 }
 
 #endif // PLOTTING_H
