@@ -39,8 +39,17 @@ void plotPeriodicGrid(float *periodic_grid, int N, int M) {
     gp << "plot 'periodic_grid_data_y.dat' using 1:2:3 with image\n";
 }
 
-void plotVelocityGrid(float *periodic_grid, float *velocity_grid, int N, int M, float periodic_start, float periodic_end, const std::string& plotname, const std::string& dirName) {
-    std::string data_file_path(dirName + "/uv_" + plotname + ".dat");
+void plotVelocityGrid(
+    float *periodic_grid, 
+    float *velocity_grid,
+    int N,
+    int M,
+    float periodic_start,
+    float periodic_end,
+    const std::string& plotname,
+    const std::string& dirName)
+ {
+    std::string data_file_path(std::string(dirName + "/uv_" + plotname + ".dat"));
     std::ofstream data_file(data_file_path);
     for (int y_i = 0; y_i < M; ++y_i) {
         for (int i = 0; i < 2 * N; i += 2) {

@@ -55,36 +55,41 @@ void initilizeVelocityGrid(float *velocity_grid,float *periodic_grid,int n ,int 
     }
 }
 
+int periodic_linear_Idx(const int &x, const int &y, const int bound_x = 2*N,const int bound_y = M)
+{
+    //return y * bound_x + x;
+    return (y % bound_y) * bound_x + (x % bound_x);
+}
 void diffuseExplicit(float *velocity_grid,float *velocity_grid_next, int n , int m){
     float dx = (PERIODIC_END - PERIODIC_START) / (n - 1);
     float dy = (PERIODIC_END - PERIODIC_START) / (m - 1);
-
+    int nn = 2 * n;
     //TODO: Boundary 
     for (int y_i = 0; y_i < m; y_i++)
     {
-        for (int i = 1; i < 2*n; i+=2)
+        for (int i = 1; i < nn; i+=2)
         {   
             int u_i = i-1;
             int v_i = i;
 
-            float u = velocity_grid[y_i * (2*n) + u_i];
-            float v = velocity_grid[y_i * (2*n) + v_i];
+            float u = velocity_grid[periodic_linear_Idx(u_i,y_i)];
+            float v = velocity_grid[periodic_linear_Idx(v_i,y_i)];
 
-            float u_left = velocity_grid[y_i * (2*n) + u_i - 2];
-            float u_right = velocity_grid[y_i * (2*n) + u_i + 2];
-            float u_up = velocity_grid[(y_i + 1) * (2*n) + u_i];
-            float u_down = velocity_grid[(y_i - 1) * (2*n) + u_i];
+            float u_left = velocity_grid[periodic_linear_Idx(u_i - 2,y_i)];
+            float u_right = velocity_grid[periodic_linear_Idx(u_i + 2,y_i)];
+            float u_up = velocity_grid[periodic_linear_Idx(u_i,y_i+1)];
+            float u_down = velocity_grid[periodic_linear_Idx(u_i,y_i-1)];
 
-            float v_left = velocity_grid[y_i * (2*n) + v_i - 2];
-            float v_right = velocity_grid[y_i * (2*n) + v_i + 2];
-            float v_up = velocity_grid[(y_i + 1) * (2*n) + v_i];
-            float v_down = velocity_grid[(y_i - 1) * (2*n) + v_i];
+            float v_left = velocity_grid[periodic_linear_Idx(v_i - 2,y_i)];
+            float v_right = velocity_grid[periodic_linear_Idx(v_i + 2,y_i)];
+            float v_up = velocity_grid[periodic_linear_Idx(v_i,y_i+1)];
+            float v_down = velocity_grid[periodic_linear_Idx(v_i,y_i-1)];
 
             float u_diffusion = DIFFUSIVITY * (u_right - 2 * u + u_left) / (dx * dx) + DIFFUSIVITY * (u_up - 2 * u + u_down) / (dy * dy);
             float v_diffusion = DIFFUSIVITY * (v_right - 2 * v + v_left) / (dx * dx) + DIFFUSIVITY * (v_up - 2 * v + v_down) / (dy * dy);
 
-            velocity_grid_next[y_i * (2*n) + u_i] = u + TIMESTEP * u_diffusion;
-            velocity_grid_next[y_i * (2*n) + v_i] = v + TIMESTEP * v_diffusion;
+            velocity_grid_next[periodic_linear_Idx(u_i,y_i)] = u + TIMESTEP * u_diffusion;
+            velocity_grid_next[periodic_linear_Idx(v_i,y_i)] = v + TIMESTEP * v_diffusion;
         }
     }
 }
@@ -95,40 +100,33 @@ int main()
     float *periodic_grid = (float *)malloc(N * M * 2 * sizeof(float));
     float *velocity_grid = (float *)malloc(N * M * 2 * sizeof(float));
     float *velocity_grid_next = (float *)malloc(N * M * 2 * sizeof(float));
-    //float *curr = (float *)malloc(N * M * 2 * sizeof(float));
-    //float *next = (float *)malloc(N * M * 2 * sizeof(float));
 
 
     // Check for allocation failures
-    //if (curr == NULL || next == NULL)
-    if (periodic_grid == NULL || velocity_grid == NULL)
+    if (periodic_grid == NULL || velocity_grid == NULL || velocity_grid_next == NULL)
     {
         std::cerr << "Memory allocation failed!" << std::endl;
         return EXIT_FAILURE;
     }
 
-    // Initialize the grids
-    //initializePeriodicGrid(curr, N, M);
-    //initializePeriodicGrid(next, N, M);
     initializePeriodicGrid(periodic_grid,N,M);
     initilizeVelocityGrid(velocity_grid,periodic_grid,N,M);
     //float *d_curr;
     //allocate memory on device    
     //CHECK_CUDA(cudaMalloc(&d_curr, N * M * sizeof(float)));
-
     //copy data to device
     //CHECK_CUDA(cudaMemcpy(d_curr, curr, N * M * sizeof(float), cudaMemcpyHostToDevice));
     std::string dirName = createTimestampedDirectory();
     plotPeriodicGrid(periodic_grid, N, M);
     std::string plot_name("velocity_0");
-    plotVelocityGrid(periodic_grid, velocity_grid, N, M, PERIODIC_START, PERIODIC_END, plot_name, dirName);
+    plotVelocityGrid(periodic_grid, velocity_grid, N, M, PERIODIC_START, PERIODIC_END,plot_name, dirName);
     for (int i = 1; i < ITERATIONS+1; i++){
         diffuseExplicit(velocity_grid,velocity_grid_next,N,M);
         std::swap(velocity_grid,velocity_grid_next);
         plot_name = "velocity_" + std::to_string(i);
-        plotVelocityGrid(periodic_grid, velocity_grid, N, M, PERIODIC_START, PERIODIC_END, plot_name,dirName);
+        plotVelocityGrid(periodic_grid, velocity_grid, N, M, PERIODIC_START, PERIODIC_END,plot_name, dirName);
     }
-
+    //createGifFromPngs(dirName,"animation");
 
     //for (int y_i = 0; y_i < 5; ++y_i)
     //{
