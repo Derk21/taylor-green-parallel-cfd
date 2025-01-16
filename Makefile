@@ -26,7 +26,7 @@ main: main.cu
 
 # Clean target to remove object files and executable
 clean:
-	rm -f $(EXEC)
+	rm -f $(EXEC) main
 
 # Run the program
 run: $(EXEC)

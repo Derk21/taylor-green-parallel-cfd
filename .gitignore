@@ -1,3 +1,5 @@
 main
 *.dat
 *.png
+*.gif
+plots/

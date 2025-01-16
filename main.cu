@@ -126,7 +126,8 @@ int main()
         plot_name = "velocity_" + std::to_string(i);
         plotVelocityGrid(periodic_grid, velocity_grid, N, M, PERIODIC_START, PERIODIC_END,plot_name, dirName);
     }
-    //createGifFromPngs(dirName,"animation");
+    std::cout << "Creating velocity animation" << std::endl;
+    createGifFromPngs(dirName,"animation_velocity.gif",PERIODIC_START,PERIODIC_END);
 
     //for (int y_i = 0; y_i < 5; ++y_i)
     //{

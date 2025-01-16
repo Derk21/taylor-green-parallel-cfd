@@ -9,6 +9,8 @@
 #include <chrono>
 #include <iomanip>
 #include <sstream>
+#include <algorithm>
+#include <vector>
 
 void plotPeriodicGrid(float *periodic_grid, int N, int M) {
     std::ofstream data_file_x("periodic_grid_data_x.dat");
@@ -81,8 +83,34 @@ std::string getCurrentTimestamp() {
 
 std::string createTimestampedDirectory() {
     std::string timestamp = getCurrentTimestamp();
-    std::string dirName = "plots_" + timestamp;
+    std::string dirName = "plots/" + timestamp;
     std::filesystem::create_directory(dirName);
     return dirName;
 }
+
+void createGifFromPngs(const std::string& dirName, const std::string& outputGif, float periodic_start, float periodic_end)
+{ 
+    std::vector<std::string> datFiles;
+    for (const auto& entry : std::filesystem::directory_iterator(dirName)) {
+        if (entry.path().extension() == ".dat") {
+            datFiles.push_back(entry.path().string());
+        }
+    }
+    std::sort(datFiles.begin(), datFiles.end());
+
+    std::string output_path(std::string(dirName+ "/" + outputGif));
+    std::cout << "Creating gif at: " << output_path << std::endl;
+    Gnuplot gp;
+    gp << "set xrange [" << periodic_start << ":" << periodic_end << "]\n"; // Set x-axis range
+    gp << "set yrange [" << periodic_start << ":" << periodic_end << "]\n"; // Set y-axis range
+    gp << "set terminal gif animate delay 10 size 800,600\n";
+    gp << "set output '" << output_path << "'\n";
+    for (const auto& f : datFiles) {
+        //gp << "plot '" << f << "' binary filetype=png with rgbimage \n";
+        gp << "plot '"<< f <<"' using 1:2:3:4 with vectors head filled lt 2\n";
+    }
+
+}
+
+
 #endif // PLOTTING_H
