@@ -3,6 +3,7 @@
 #include <cmath>
 #include <numeric>
 #include <cuda_runtime.h>
+#include <iomanip>
 #include "gnuplot-iostream.h"
 #include "plotting.h"
 
@@ -12,7 +13,7 @@
 #define PERIODIC_START 0.0f
 #define PERIODIC_END 2 * M_PI
 #define DIFFUSIVITY 0.1f
-#define TIMESTEP 1e-3f
+#define TIMESTEP 0.5f 
 
 #define CHECK_CUDA(call)                                               \
     if ((call) != cudaSuccess)                                         \
@@ -95,6 +96,28 @@ void diffuseExplicit(float *velocity_grid,float *velocity_grid_next, int n , int
 }
 
 
+void taylorGreenGroundTruth(float* periodic_grid,float *velocity_grid_next, int iteration, int n , int m){
+    float dx = (PERIODIC_END - PERIODIC_START) / (n - 1);
+    float dy = (PERIODIC_END - PERIODIC_START) / (m - 1);
+    int nn = 2 * n;
+    float t = iteration * TIMESTEP;
+    float F = exp(-2.0f * DIFFUSIVITY * t);
+    for (int y_i = 0; y_i < m; y_i++)
+    {
+        for (int i = 1; i < nn; i+=2)
+        {   
+            int u_i = i-1;
+            int v_i = i;
+
+            float x = periodic_grid[periodic_linear_Idx(u_i,y_i)];
+            float y = periodic_grid[periodic_linear_Idx(v_i,y_i)];
+
+            velocity_grid_next[periodic_linear_Idx(u_i,y_i)] =  sin(x) * cos(y) * F;
+            velocity_grid_next[periodic_linear_Idx(v_i,y_i)] = -1.0f * cos(x) * sin(y) * F;
+        }
+    }
+}
+
 int main()
 {
     float *periodic_grid = (float *)malloc(N * M * 2 * sizeof(float));
@@ -118,13 +141,15 @@ int main()
     //CHECK_CUDA(cudaMemcpy(d_curr, curr, N * M * sizeof(float), cudaMemcpyHostToDevice));
     std::string dirName = createTimestampedDirectory();
     plotPeriodicGrid(periodic_grid, N, M);
-    std::string plot_name("velocity_0");
+    std::string plot_name("velocity_0000");
     plotVelocityGrid(periodic_grid, velocity_grid, N, M, PERIODIC_START, PERIODIC_END,plot_name, dirName);
     for (int i = 1; i < ITERATIONS+1; i++){
-        diffuseExplicit(velocity_grid,velocity_grid_next,N,M);
+        //diffuseExplicit(velocity_grid,velocity_grid_next,N,M);
+        taylorGreenGroundTruth(periodic_grid,velocity_grid_next,i,N,M);
         std::swap(velocity_grid,velocity_grid_next);
-        plot_name = "velocity_" + std::to_string(i);
-        plotVelocityGrid(periodic_grid, velocity_grid, N, M, PERIODIC_START, PERIODIC_END,plot_name, dirName);
+        std::stringstream plot_name;
+        plot_name << "velocity_"<< std::setw(4) << std::setfill('0') << i;
+        plotVelocityGrid(periodic_grid, velocity_grid, N, M, PERIODIC_START, PERIODIC_END,plot_name.str(), dirName);
     }
     std::cout << "Creating velocity animation" << std::endl;
     createGifFromPngs(dirName,"animation_velocity.gif",PERIODIC_START,PERIODIC_END);
