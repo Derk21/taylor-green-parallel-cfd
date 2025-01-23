@@ -6,14 +6,9 @@
 #include <iomanip>
 #include "gnuplot-iostream.h"
 #include "plotting.h"
-
-#define N 64               // Grid size X
-#define M 64              // Grid size Y
-#define ITERATIONS 10    // Number of iterations
-#define PERIODIC_START 0.0f
-#define PERIODIC_END 2 * M_PI
-#define DIFFUSIVITY 0.1f
-#define TIMESTEP 0.5f 
+#include "constants.h"
+#include "utils.h"
+#include "init.h"
 
 #define CHECK_CUDA(call)                                               \
     if ((call) != cudaSuccess)                                         \
@@ -24,59 +19,6 @@
     }
 
 
-
-void initializePeriodicGrid(float *periodic_grid, int n, int m)
-{
-    //TODO: y doesn't change in y_direction, but in x direction
-    float dx = (PERIODIC_END - PERIODIC_START) / (n - 1);
-    float dy = (PERIODIC_END - PERIODIC_START) / (m - 1);
-    for (int y_i = 0; y_i < m; y_i++)
-    {
-        for (int i = 1; i < 2*n; i+=2)
-        {
-            int x_i = i / 2;
-            periodic_grid[y_i * (2*n) + i - 1] = PERIODIC_START + x_i * dx; //x component 
-            periodic_grid[y_i * (2*n) + i] = PERIODIC_START + y_i * dy; //y component 
-        }
-    }
-}
-
-void setClosestGridPointIdx(float x, float y, int n, int m, int &closest_x_i, int &closest_y_i)
-{
-    //sets index to y-value,(v_i) right?
-    float dx = (PERIODIC_END - PERIODIC_START) / (n - 1);
-    float dy = (PERIODIC_END - PERIODIC_START) / (m - 1);
-
-    closest_x_i = round((x - PERIODIC_START) / dx);
-    closest_y_i = round((y - PERIODIC_START) / dy);
-
-    //Boundary 
-    if (closest_x_i < 0) closest_x_i = 0;
-    else if (closest_x_i >= n) closest_x_i = n - 1;
-    if (closest_y_i < 0) closest_y_i = 0;
-    else if (closest_y_i >= m) closest_y_i = m - 1;
-}
-
-void initilizeVelocityGrid(float *velocity_grid,float *periodic_grid,int n ,int m)
-{
-    for (int y_i = 0; y_i < m; y_i++)
-    {
-        for (int i = 1; i < 2*n; i+=2)
-        {
-            float x = periodic_grid[y_i * (2*n) + i - 1];
-            float y = periodic_grid[y_i * (2*n) + i];
-
-            velocity_grid[y_i * (2*n) + i - 1] = sin(x) * cos(y); //u component 
-            velocity_grid[y_i * (2*n) + i] = -1.0f * cos(x) * sin(y); //v component 
-        }
-    }
-}
-
-int periodic_linear_Idx(const int &x, const int &y, const int bound_x = 2*N,const int bound_y = M)
-{
-    //return y * bound_x + x;
-    return (y % bound_y) * bound_x + (x % bound_x);
-}
 void diffuseExplicit(float *velocity_grid,float *velocity_grid_next, int n , int m){
     float dx = (PERIODIC_END - PERIODIC_START) / (n - 1);
     float dy = (PERIODIC_END - PERIODIC_START) / (m - 1);
@@ -118,8 +60,8 @@ void interpolateVelocity(float x_d, float y_d, int n, int m, const float *period
     u_i_closest = v_i_closest - 1;
 
     // interpolation weights
-    float x_closest = periodic_grid[periodic_linear_Idx(u_i_closest, y_i_closest)];
-    float y_closest = periodic_grid[periodic_linear_Idx(v_i_closest, y_i_closest)];
+    float x_closest = periodic_grid[periodic_linear_Idx(u_i_closest, y_i_closest,n,m)];
+    float y_closest = periodic_grid[periodic_linear_Idx(v_i_closest, y_i_closest,n,m)];
     // normalized grid distances
     float x_diff = (x_d - x_closest) / (PERIODIC_END - PERIODIC_START);
     float y_diff = (y_d - y_closest) / (PERIODIC_END - PERIODIC_START);
@@ -134,7 +76,7 @@ void interpolateVelocity(float x_d, float y_d, int n, int m, const float *period
     // y_direction next grid cell
     u += (1.0f - x_diff) * y_diff * velocity_grid[periodic_linear_Idx(u_i_closest, y_i_closest + 1)];
     v += (1.0f - x_diff) * y_diff * velocity_grid[periodic_linear_Idx(v_i_closest, y_i_closest + 1)];
-    // next grid cell in both directions
+    // next grid cell in diagonal direction 
     u += (1.0f - x_diff) * (1.0f - y_diff) * velocity_grid[periodic_linear_Idx(u_i_closest + 2, y_i_closest + 1)];
     v += (1.0f - x_diff) * (1.0f - y_diff) * velocity_grid[periodic_linear_Idx(v_i_closest + 2, y_i_closest + 1)];
 
@@ -143,13 +85,13 @@ void interpolateVelocity(float x_d, float y_d, int n, int m, const float *period
     velocity_grid[periodic_linear_Idx(v_i_closest, y_i_closest)] = v;
 }
 
-void integrateEuler(float *velocity_grid, int &u_i, int &y_i, int &v_i, const float *periodic_grid, float &x_d, const float dt, float &y_d)
+void integrateEuler(float *velocity_grid, int &u_i, int &y_i, int &v_i, const float *periodic_grid, float &x_d, const float dt, float &y_d,int n=N, int m=M)
 {
     float u_old = velocity_grid[periodic_linear_Idx(u_i, y_i)];
     float v_old = velocity_grid[periodic_linear_Idx(v_i, y_i)];
 
-    float x = periodic_grid[periodic_linear_Idx(u_i, y_i)];
-    float y = periodic_grid[periodic_linear_Idx(v_i, y_i)];
+    float x = periodic_grid[periodic_linear_Idx(u_i, y_i,n,m)];
+    float y = periodic_grid[periodic_linear_Idx(v_i, y_i,n,m)];
 
     x_d = fmod(x + dt * u_old, PERIODIC_END);
     y_d = fmod(y + dt * v_old, PERIODIC_END);
@@ -165,7 +107,7 @@ void advectSemiLagrange(float *velocity_grid, const float *periodic_grid, const 
             int u_i = i-1;
             int v_i = i;
             float x_d, y_d;
-            integrateEuler(velocity_grid, u_i, y_i, v_i, periodic_grid, x_d, dt, y_d);
+            integrateEuler(velocity_grid, u_i, y_i, v_i, periodic_grid, x_d, -dt, y_d);
             interpolateVelocity(x_d, y_d, n, m, periodic_grid, velocity_grid);
         }
     }
@@ -190,7 +132,7 @@ void taylorGreenGroundTruth(float* periodic_grid,float *velocity_grid_next, int 
             velocity_grid_next[periodic_linear_Idx(u_i,y_i)] =  sin(x) * cos(y) * F;
             velocity_grid_next[periodic_linear_Idx(v_i,y_i)] = -1.0f * cos(x) * sin(y) * F;
         }
-    }
+    } 
 }
 
 int main()

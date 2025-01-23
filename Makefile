@@ -5,10 +5,10 @@ CXX = clang
 CXXFLAGS = -O2 -std=c++17
 
 # Include directories
-INCLUDE_DIRS = -I$(CUDA_HOME)/include
+INCLUDE_DIRS = -I$(CUDA_HOME)/include 
 
 # Libraries
-LIBS = -L$(CUDA_HOME)/lib64 -lcudart -lcuda -lboost_iostreams -lboost_system -lboost_filesystem
+LIBS = -L$(CUDA_HOME)/lib64 -lcudart -lcuda -lboost_iostreams -lboost_system -lboost_filesystem -lcusolver -lcusparse
 
 # Flags for compiling
 # NVCC_FLAGS = -arch=sm_80 -lineinfo -Xcompiler $(CXXFLAGS)
