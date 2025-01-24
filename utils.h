@@ -49,6 +49,7 @@ void taylorGreenGroundTruth(double* periodic_grid,double *velocity_grid_next, in
     int nn = 2 * n;
     double t = iteration * TIMESTEP;
     double F = exp(-2.0 * DIFFUSIVITY * t);
+
     for (int y_i = 0; y_i < m; y_i++)
     {
         for (int i = 1; i < nn; i+=2)
@@ -56,8 +57,8 @@ void taylorGreenGroundTruth(double* periodic_grid,double *velocity_grid_next, in
             int u_i = i-1;
             int v_i = i;
 
-            double x = periodic_grid[periodic_linear_Idx(u_i,y_i,n,m)];
-            double y = periodic_grid[periodic_linear_Idx(v_i,y_i,n,m)];
+            double x = periodic_grid[periodic_linear_Idx(u_i,y_i)];
+            double y = periodic_grid[periodic_linear_Idx(v_i,y_i)];
 
             velocity_grid_next[periodic_linear_Idx(u_i,y_i)] =  sin(x) * cos(y) * F;
             velocity_grid_next[periodic_linear_Idx(v_i,y_i)] = -1.0 * cos(x) * sin(y) * F;

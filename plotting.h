@@ -71,6 +71,8 @@ void plotVelocityGrid(
             }
         }
     }
+    //stop from scalling down
+    if (max_magnitude < 1.0) max_magnitude = 1.0;
 
     // Write normalized vectors and magnitudes to the data file
     for (int y_i = 0; y_i < m; ++y_i) {
