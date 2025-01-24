@@ -54,6 +54,25 @@ void plotVelocityGrid(
  {
     std::string data_file_path(std::string(dirName + "/uv_" + plotname + ".dat"));
     std::ofstream data_file(data_file_path);
+    double max_magnitude = 0.0;
+
+    // find maximum magnitude
+    std::vector<double> magnitudes;
+    for (int y_i = 0; y_i < m; ++y_i) {
+        for (int i = 1; i < 2 * n; i += 2) {
+            int u_i = i - 1;
+            int v_i = i;
+            double u = velocity_grid[periodic_linear_Idx(u_i, y_i)];
+            double v = velocity_grid[periodic_linear_Idx(v_i, y_i)];
+            double magnitude = sqrt(u * u + v * v);
+            magnitudes.push_back(magnitude);
+            if (magnitude > max_magnitude) {
+                max_magnitude = magnitude;
+            }
+        }
+    }
+
+    // Write normalized vectors and magnitudes to the data file
     for (int y_i = 0; y_i < m; ++y_i) {
         for (int i = 1; i < 2 * n; i += 2) {
             int u_i = i - 1;
@@ -62,7 +81,10 @@ void plotVelocityGrid(
             double y = periodic_grid[periodic_linear_Idx(v_i, y_i)];
             double u = velocity_grid[periodic_linear_Idx(u_i, y_i)];
             double v = velocity_grid[periodic_linear_Idx(v_i, y_i)];
-            data_file << x << " " << y << " " << u << " " << v << "\n";
+            double magnitude = magnitudes[(y_i * n) + (i / 2)];
+            double norm_u = u / max_magnitude;
+            double norm_v = v / max_magnitude;
+            data_file << x << " " << y << " " << norm_u << " " << norm_v << " " << magnitude << "\n";
         }
         data_file << "\n";
     }
@@ -72,10 +94,10 @@ void plotVelocityGrid(
     gp << "set terminal png size 800,800\n"; // Use PNG terminal with specified size
     gp << "set xrange [" << periodic_start << ":" << periodic_end << "]\n"; // Set x-axis range
     gp << "set yrange [" << periodic_start << ":" << periodic_end << "]\n"; // Set y-axis range
+    gp << "set cbrange [0:" << max_magnitude << "]\n"; // Set color range
     gp << "set output '" << dirName << "/" << plotname << ".png'\n"; // Output file
-    gp << "plot '"<< data_file_path <<"' using 1:2:3:4 with vectors head filled lt 2\n";
+    gp << "plot '"<< data_file_path <<"' using 1:2:3:4:5 with vectors head filled lt palette\n";
 }
-
 std::string getCurrentTimestamp() {
     auto now = std::chrono::system_clock::now();
     auto in_time_t = std::chrono::system_clock::to_time_t(now);
@@ -93,25 +115,19 @@ std::string createTimestampedDirectory() {
 
 void createGifFromPngs(const std::string& dirName, const std::string& outputGif, double periodic_start, double periodic_end)
 { 
-    std::vector<std::string> datFiles;
-    for (const auto& entry : std::filesystem::directory_iterator(dirName)) {
-        if (entry.path().extension() == ".dat") {
-            datFiles.push_back(entry.path().string());
-        }
+    std::stringstream command;
+    command << "ffmpeg -framerate 10 -i " 
+    << dirName << "/velocity_%04d.png -vf \"scale=800:-1:flags=lanczos\" -c:v gif -y " 
+    << dirName << "/" << outputGif
+    << " -loglevel error";
+    
+    // Execute the command
+    int ret = std::system(command.str().c_str());
+    
+    if (ret == 0) {
+        std::cout << "GIF created successfully.\n";
+    } else {
+        std::cerr << "Failed to execute FFmpeg command.\n";
     }
-    std::sort(datFiles.begin(), datFiles.end());
-
-    std::string output_path(std::string(dirName+ "/" + outputGif));
-    std::cout << "Creating gif at: " << output_path << std::endl;
-    Gnuplot gp;
-    gp << "set xrange [" << periodic_start << ":" << periodic_end << "]\n"; // Set x-axis range
-    gp << "set yrange [" << periodic_start << ":" << periodic_end << "]\n"; // Set y-axis range
-    gp << "set terminal gif animate delay 10 size 800,800\n";
-    gp << "set output '" << output_path << "'\n";
-    for (const auto& f : datFiles) {
-        //gp << "plot '" << f << "' binary filetype=png with rgbimage \n";
-        gp << "plot '"<< f <<"' using 1:2:3:4 with vectors head filled lt 2\n";
-    }
-
 }
 
