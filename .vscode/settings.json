@@ -2,7 +2,8 @@
     "files.associations": {
         "ctime": "cpp",
         "filesystem": "cpp",
-        "iostream": "cpp"
+        "iostream": "cpp",
+        "chrono": "cpp"
     },
     "makefile.launchConfigurations": [
         {

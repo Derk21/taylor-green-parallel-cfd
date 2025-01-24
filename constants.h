@@ -3,5 +3,8 @@
 #define ITERATIONS 10    // Number of iterations
 #define PERIODIC_START 0.0
 #define PERIODIC_END 2 * M_PI
-#define DIFFUSIVITY 0.1f
-#define TIMESTEP 0.5f 
+#define DIFFUSIVITY 0.1
+#define TIMESTEP 0.5 
+
+//explicit diffusion
+#define SUBSTEPS_EXPLICIT 10
