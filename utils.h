@@ -5,8 +5,9 @@
 
 int periodic_linear_Idx(const int &x, const int &y, const int bound_x = 2*N,const int bound_y = M)
 {
-    //return y * bound_x + x;
-    return (y % bound_y) * bound_x + (x % bound_x);
+    int mod_x = ((x % bound_x) + bound_x) % bound_x; // ensures non-negative result
+    int mod_y = ((y % bound_y) + bound_y) % bound_y;
+    return mod_y * bound_x + mod_x;
 }
 
 void setClosestGridPointIdx(float x, float y, int n, int m, int &closest_x_i, int &closest_y_i)

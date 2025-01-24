@@ -1,6 +1,4 @@
-#ifndef PLOTTING_H
-#define PLOTTING_H
-
+#pragma once
 #include <iostream>
 #include <fstream>
 #include <gnuplot-iostream.h>
@@ -12,13 +10,15 @@
 #include <algorithm>
 #include <vector>
 
-void plotPeriodicGrid(float *periodic_grid, int N, int M) {
+void plotPeriodicGrid(float *periodic_grid, int n, int m) {
     std::ofstream data_file_x("periodic_grid_data_x.dat");
     std::ofstream data_file_y("periodic_grid_data_y.dat");
-    for (int y_i = 0; y_i < M; ++y_i) {
-        for (int i = 0; i < 2 * N; i += 2) {
-            float x = periodic_grid[y_i * (2 * N) + i - 1];
-            float y = periodic_grid[y_i * (2 * N) + i];
+    for (int y_i = 0; y_i < m; ++y_i) {
+        for (int i = 1; i < 2 * n; i += 2) {
+            int u_i = i - 1;
+            int v_i = i;
+            float x = periodic_grid[periodic_linear_Idx(u_i, y_i)];
+            float y = periodic_grid[periodic_linear_Idx(v_i, y_i)];
             data_file_x << i / 2 << " " << y_i << " " << x << "\n";
             data_file_y << i / 2 << " " << y_i << " " << y << "\n";
         }
@@ -44,8 +44,8 @@ void plotPeriodicGrid(float *periodic_grid, int N, int M) {
 void plotVelocityGrid(
     float *periodic_grid, 
     float *velocity_grid,
-    int N,
-    int M,
+    int n,
+    int m,
     float periodic_start,
     float periodic_end,
     const std::string& plotname,
@@ -53,12 +53,14 @@ void plotVelocityGrid(
  {
     std::string data_file_path(std::string(dirName + "/uv_" + plotname + ".dat"));
     std::ofstream data_file(data_file_path);
-    for (int y_i = 0; y_i < M; ++y_i) {
-        for (int i = 0; i < 2 * N; i += 2) {
-            float x = periodic_grid[y_i * (2 * N) + i];
-            float y = periodic_grid[y_i * (2 * N) + i + 1];
-            float u = velocity_grid[y_i * (2 * N) + i];
-            float v = velocity_grid[y_i * (2 * N) + i + 1];
+    for (int y_i = 0; y_i < m; ++y_i) {
+        for (int i = 1; i < 2 * n; i += 2) {
+            int u_i = i - 1;
+            int v_i = i;
+            float x = periodic_grid[periodic_linear_Idx(u_i, y_i)];
+            float y = periodic_grid[periodic_linear_Idx(v_i, y_i)];
+            float u = velocity_grid[periodic_linear_Idx(u_i, y_i)];
+            float v = velocity_grid[periodic_linear_Idx(v_i, y_i)];
             data_file << x << " " << y << " " << u << " " << v << "\n";
         }
         data_file << "\n";
@@ -66,7 +68,7 @@ void plotVelocityGrid(
     data_file.close();
 
     Gnuplot gp;
-    gp << "set terminal png size 800,600\n"; // Use PNG terminal with specified size
+    gp << "set terminal png size 800,800\n"; // Use PNG terminal with specified size
     gp << "set xrange [" << periodic_start << ":" << periodic_end << "]\n"; // Set x-axis range
     gp << "set yrange [" << periodic_start << ":" << periodic_end << "]\n"; // Set y-axis range
     gp << "set output '" << dirName << "/" << plotname << ".png'\n"; // Output file
@@ -103,7 +105,7 @@ void createGifFromPngs(const std::string& dirName, const std::string& outputGif,
     Gnuplot gp;
     gp << "set xrange [" << periodic_start << ":" << periodic_end << "]\n"; // Set x-axis range
     gp << "set yrange [" << periodic_start << ":" << periodic_end << "]\n"; // Set y-axis range
-    gp << "set terminal gif animate delay 10 size 800,600\n";
+    gp << "set terminal gif animate delay 10 size 800,800\n";
     gp << "set output '" << output_path << "'\n";
     for (const auto& f : datFiles) {
         //gp << "plot '" << f << "' binary filetype=png with rgbimage \n";
@@ -112,5 +114,3 @@ void createGifFromPngs(const std::string& dirName, const std::string& outputGif,
 
 }
 
-
-#endif // PLOTTING_H
