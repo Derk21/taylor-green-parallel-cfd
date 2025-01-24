@@ -13,9 +13,10 @@ LIBS = -L$(CUDA_HOME)/lib64 -lcudart -lcuda -lboost_iostreams -lboost_system -lb
 # Flags for compiling
 # NVCC_FLAGS = -arch=sm_80 -lineinfo -Xcompiler $(CXXFLAGS)
 NVCC_FLAGS = -lineinfo -Xcompiler $(CXXFLAGS)
+DEBUG_FLAGS = -g -G -O0 -Xcompiler -std=c++17
 
 # Target to build the executable
-all: $(EXEC) main 
+all: $(EXEC) clean main debug
 
 # Rule for compiling the CUDA source file
 $(EXEC): $(SRC)
@@ -23,6 +24,8 @@ $(EXEC): $(SRC)
 main: main.cu
 	$(NVCC) $(NVCC_FLAGS) main.cu -o main $(LIBS)
 
+debug: main.cu
+	$(NVCC) $(DEBUG_FLAGS) -g main.cu -o main_debug $(LIBS)
 
 # Clean target to remove object files and executable
 clean:

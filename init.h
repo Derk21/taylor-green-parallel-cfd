@@ -2,11 +2,11 @@
 #include "constants.h"
 #include "utils.h"
 
-void initializePeriodicGrid(float *periodic_grid, int n, int m)
+void initializePeriodicGrid(double *periodic_grid, int n, int m)
 {
     //TODO: y doesn't change in y_direction, but in x direction
-    float dx = (PERIODIC_END - PERIODIC_START) / (n - 1);
-    float dy = (PERIODIC_END - PERIODIC_START) / (m - 1);
+    double dx = (PERIODIC_END - PERIODIC_START) / (n - 1);
+    double dy = (PERIODIC_END - PERIODIC_START) / (m - 1);
     for (int y_i = 0; y_i < m; y_i++)
     {
         for (int i = 1; i < 2*n; i+=2)
@@ -19,29 +19,29 @@ void initializePeriodicGrid(float *periodic_grid, int n, int m)
 }
 
 
-void initilizeVelocityGrid(float *velocity_grid,float *periodic_grid,int n ,int m)
+void initilizeVelocityGrid(double *velocity_grid,double *periodic_grid,int n ,int m)
 {
     for (int y_i = 0; y_i < m; y_i++)
     {
         for (int i = 1; i < 2*n; i+=2)
         {
-            float x = periodic_grid[y_i * (2*n) + i - 1];
-            float y = periodic_grid[y_i * (2*n) + i];
+            double x = periodic_grid[y_i * (2*n) + i - 1];
+            double y = periodic_grid[y_i * (2*n) + i];
 
             velocity_grid[y_i * (2*n) + i - 1] = sin(x) * cos(y); //u component 
-            velocity_grid[y_i * (2*n) + i] = -1.0f * cos(x) * sin(y); //v component 
+            velocity_grid[y_i * (2*n) + i] = -1.0 * cos(x) * sin(y); //v component 
         }
     }
 }
 
-void initilizePressure(float *pressure_grid,float * periodic_grid, int n ,int m)
+void initilizePressure(double *pressure_grid,double * periodic_grid, int n ,int m)
 {
-    float dx = (PERIODIC_END - PERIODIC_START) / (n - 1);
-    float dy = (PERIODIC_END - PERIODIC_START) / (m - 1);
+    double dx = (PERIODIC_END - PERIODIC_START) / (n - 1);
+    double dy = (PERIODIC_END - PERIODIC_START) / (m - 1);
     //int nn = 2 * n;
-    //float t = iteration * TIMESTEP;
-    //float F = exp(-2.0f * DIFFUSIVITY * 1.0f);
-    float F = 1.0f;
+    //double t = iteration * TIMESTEP;
+    //double F = exp(-2.0 * DIFFUSIVITY * 1.0);
+    double F = 1.0;
     for (int y_i = 0; y_i < m; y_i++)
     {
         for (int i = 1; i < n; i++)
@@ -50,9 +50,9 @@ void initilizePressure(float *pressure_grid,float * periodic_grid, int n ,int m)
             int u_i = 2 * (i-1);
             int v_i = 2 * i;
 
-            float x = periodic_grid[periodic_linear_Idx(u_i,y_i,n,m)];
-            float y = periodic_grid[periodic_linear_Idx(v_i,y_i,n,m)];
-            pressure_grid[y_i * n + i] = (1.0f / 4 )* (cos(2*x)+cos(2*y))*pow(F,2); 
+            double x = periodic_grid[periodic_linear_Idx(u_i,y_i,n,m)];
+            double y = periodic_grid[periodic_linear_Idx(v_i,y_i,n,m)];
+            pressure_grid[y_i * n + i] = (1.0 / 4 )* (cos(2*x)+cos(2*y))*pow(F,2); 
         }
     }
 }

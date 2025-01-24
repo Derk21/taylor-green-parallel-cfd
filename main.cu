@@ -3,12 +3,18 @@
 #include <cmath>
 #include <numeric>
 #include <cuda_runtime.h>
+//#include <cusolverSp.h>
+#include <cusolverDn.h>
 #include <iomanip>
 #include "gnuplot-iostream.h"
 #include "plotting.h"
 #include "constants.h"
 #include "utils.h"
 #include "init.h"
+#include "advect.h"
+#include "diffuse.h"
+
+
 
 #define CHECK_CUDA(call)                                               \
     if ((call) != cudaSuccess)                                         \
@@ -132,14 +138,18 @@ void taylorGreenGroundTruth(float* periodic_grid,float *velocity_grid_next, int 
             velocity_grid_next[periodic_linear_Idx(u_i,y_i)] =  sin(x) * cos(y) * F;
             velocity_grid_next[periodic_linear_Idx(v_i,y_i)] = -1.0f * cos(x) * sin(y) * F;
         }
-    } 
+    }
 }
 
 int main()
-{
-    float *periodic_grid = (float *)malloc(N * M * 2 * sizeof(float));
-    float *velocity_grid = (float *)malloc(N * M * 2 * sizeof(float));
-    float *velocity_grid_next = (float *)malloc(N * M * 2 * sizeof(float));
+{   
+    //vortex decays exponentially -> use double to stabilize
+    double *periodic_grid = (double *)malloc(N * M * 2 * sizeof(double));
+    double *velocity_grid = (double *)malloc(N * M * 2 * sizeof(double));
+    double *velocity_grid_next = (double *)malloc(N * M * 2 * sizeof(double));
+    //doubles to make compatible with cuSolver
+    double *divergence = (double *)malloc(N * M * sizeof(double));
+    double *pressure = (double *)malloc(N * M * sizeof(double));
 
 
     // Check for allocation failures
@@ -151,23 +161,28 @@ int main()
 
     initializePeriodicGrid(periodic_grid,N,M);
     initilizeVelocityGrid(velocity_grid,periodic_grid,N,M);
-    //float *d_curr;
+    //double *d_curr;
     //allocate memory on device    
-    //CHECK_CUDA(cudaMalloc(&d_curr, N * M * sizeof(float)));
+    //CHECK_CUDA(cudaMalloc(&d_curr, N * M * sizeof(double)));
     //copy data to device
-    //CHECK_CUDA(cudaMemcpy(d_curr, curr, N * M * sizeof(float), cudaMemcpyHostToDevice));
+    //CHECK_CUDA(cudaMemcpy(d_curr, curr, N * M * sizeof(double), cudaMemcpyHostToDevice));
     std::string dirName = createTimestampedDirectory();
-    plotPeriodicGrid(periodic_grid, N, M);
+    //plotPeriodicGrid(periodic_grid, N, M);
     std::string plot_name("velocity_0000");
     plotVelocityGrid(periodic_grid, velocity_grid, N, M, PERIODIC_START, PERIODIC_END,plot_name, dirName);
     for (int i = 1; i < ITERATIONS+1; i++){
         diffuseExplicit(velocity_grid,velocity_grid_next,N,M);
-        advectSemiLagrange(velocity_grid,periodic_grid,TIMESTEP,N,M);
+        std::stringstream plot_name;
+        plot_name << "velocity_"<< std::setw(4) << std::setfill('0') << i << "_diffused";
+        //plotVelocityGrid(periodic_grid, velocity_grid, N, M, PERIODIC_START, PERIODIC_END,plot_name.str(), dirName);
+        plot_name.str("");
+        //advectSemiLagrange(velocity_grid,periodic_grid,TIMESTEP,N,M);
+        //make_incompressible(velocity_grid,divergence,pressure);
         //taylorGreenGroundTruth(periodic_grid,velocity_grid_next,i,N,M);
         std::swap(velocity_grid,velocity_grid_next);
-        std::stringstream plot_name;
         plot_name << "velocity_"<< std::setw(4) << std::setfill('0') << i;
         plotVelocityGrid(periodic_grid, velocity_grid, N, M, PERIODIC_START, PERIODIC_END,plot_name.str(), dirName);
+        plot_name.str("");
     }
     std::cout << "Creating velocity animation" << std::endl;
     createGifFromPngs(dirName,"animation_velocity.gif",PERIODIC_START,PERIODIC_END);
@@ -184,4 +199,6 @@ int main()
     free(periodic_grid);
     free(velocity_grid);
     free(velocity_grid_next);
+    free(divergence);
+    free(pressure);
 }

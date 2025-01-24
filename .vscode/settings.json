@@ -1,6 +1,14 @@
 {
     "files.associations": {
         "ctime": "cpp",
-        "filesystem": "cpp"
-    }
+        "filesystem": "cpp",
+        "iostream": "cpp"
+    },
+    "makefile.launchConfigurations": [
+        {
+            "cwd": "/home/florian/projects/tailor-green-vortex",
+            "binaryPath": "/home/florian/projects/tailor-green-vortex/main_debug",
+            "binaryArgs": []
+        }
+    ]
 }

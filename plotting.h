@@ -9,16 +9,17 @@
 #include <sstream>
 #include <algorithm>
 #include <vector>
+#include "utils.h"
 
-void plotPeriodicGrid(float *periodic_grid, int n, int m) {
+void plotPeriodicGrid(double *periodic_grid, int n, int m) {
     std::ofstream data_file_x("periodic_grid_data_x.dat");
     std::ofstream data_file_y("periodic_grid_data_y.dat");
     for (int y_i = 0; y_i < m; ++y_i) {
         for (int i = 1; i < 2 * n; i += 2) {
             int u_i = i - 1;
             int v_i = i;
-            float x = periodic_grid[periodic_linear_Idx(u_i, y_i)];
-            float y = periodic_grid[periodic_linear_Idx(v_i, y_i)];
+            double x = periodic_grid[periodic_linear_Idx(u_i, y_i)];
+            double y = periodic_grid[periodic_linear_Idx(v_i, y_i)];
             data_file_x << i / 2 << " " << y_i << " " << x << "\n";
             data_file_y << i / 2 << " " << y_i << " " << y << "\n";
         }
@@ -29,9 +30,9 @@ void plotPeriodicGrid(float *periodic_grid, int n, int m) {
     data_file_y.close();
 
     Gnuplot gp;
-    gp << "set terminal png size 800,600\n"; // Use PNG terminal with specified size
-    gp << "set xrange [0:" << N-1 << "]\n"; // Set x-axis range
-    gp << "set yrange [0:" << M-1 << "]\n"; // Set y-axis range
+    gp << "set terminal png size 800,800\n"; // Use PNG terminal with specified size
+    gp << "set xrange [0:" << n-1 << "]\n"; // Set x-axis range
+    gp << "set yrange [0:" << m-1 << "]\n"; // Set y-axis range
     gp << "set view map \n";
     gp << "set pm3d at b\n"; 
     gp << "set output 'periodic_grid_plot_x.png'\n"; // Output file
@@ -42,12 +43,12 @@ void plotPeriodicGrid(float *periodic_grid, int n, int m) {
 }
 
 void plotVelocityGrid(
-    float *periodic_grid, 
-    float *velocity_grid,
+    double *periodic_grid, 
+    double *velocity_grid,
     int n,
     int m,
-    float periodic_start,
-    float periodic_end,
+    double periodic_start,
+    double periodic_end,
     const std::string& plotname,
     const std::string& dirName)
  {
@@ -57,10 +58,10 @@ void plotVelocityGrid(
         for (int i = 1; i < 2 * n; i += 2) {
             int u_i = i - 1;
             int v_i = i;
-            float x = periodic_grid[periodic_linear_Idx(u_i, y_i)];
-            float y = periodic_grid[periodic_linear_Idx(v_i, y_i)];
-            float u = velocity_grid[periodic_linear_Idx(u_i, y_i)];
-            float v = velocity_grid[periodic_linear_Idx(v_i, y_i)];
+            double x = periodic_grid[periodic_linear_Idx(u_i, y_i)];
+            double y = periodic_grid[periodic_linear_Idx(v_i, y_i)];
+            double u = velocity_grid[periodic_linear_Idx(u_i, y_i)];
+            double v = velocity_grid[periodic_linear_Idx(v_i, y_i)];
             data_file << x << " " << y << " " << u << " " << v << "\n";
         }
         data_file << "\n";
@@ -90,7 +91,7 @@ std::string createTimestampedDirectory() {
     return dirName;
 }
 
-void createGifFromPngs(const std::string& dirName, const std::string& outputGif, float periodic_start, float periodic_end)
+void createGifFromPngs(const std::string& dirName, const std::string& outputGif, double periodic_start, double periodic_end)
 { 
     std::vector<std::string> datFiles;
     for (const auto& entry : std::filesystem::directory_iterator(dirName)) {
