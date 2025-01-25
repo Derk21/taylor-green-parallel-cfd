@@ -22,25 +22,68 @@
 
 int periodic_linear_Idx(const int &x, const int &y, const int bound_x = 2*N,const int bound_y = M)
 {   
-    int mod_x = ((x % bound_x) + bound_x) % bound_x; // ensures non-negative result
-    int mod_y = ((y % bound_y) + bound_y) % bound_y;
+    int mod_x = (x + bound_x) % bound_x; // ensures non-negative result
+    int mod_y = (y + bound_y) % bound_y;
     return mod_y * bound_x + mod_x;
 }
 
 void setClosestGridPointIdx(double x, double y, int n, int m, int &closest_x_i, int &closest_y_i)
 {
-    //sets index to y-value,(v_i) right?
+    //sets index to y-value,(v_i) 
     double dx = (PERIODIC_END - PERIODIC_START) / (n - 1);
     double dy = (PERIODIC_END - PERIODIC_START) / (m - 1);
 
     closest_x_i = round((x - PERIODIC_START) / dx);
     closest_y_i = round((y - PERIODIC_START) / dy);
 
-    //Boundary 
-    if (closest_x_i < 0) closest_x_i = 0;
-    else if (closest_x_i >= n) closest_x_i = n - 1;
-    if (closest_y_i < 0) closest_y_i = 0;
-    else if (closest_y_i >= m) closest_y_i = m - 1;
+    //periodic boundary conditions
+    closest_x_i = (closest_x_i + n) % n;
+    closest_y_i = (closest_y_i + m) % m;
+
+    //convert to v_i coordinate
+    closest_x_i = closest_x_i * 2 + 1;
+}
+
+void test_setClosestGridPointIdx()
+{
+    int closest_x_i, closest_y_i;
+    int n = N;
+    int m = M;
+
+    double dx = (PERIODIC_END - PERIODIC_START) / (n - 1);
+    double dy = (PERIODIC_END - PERIODIC_START) / (m - 1);
+    // Test case 1: Point within bounds
+    setClosestGridPointIdx(dx, dx, n, m, closest_x_i, closest_y_i);
+    assert(closest_x_i == 3);
+    assert(closest_y_i == 1);
+
+    // Test case 2: Point at the boundary
+    setClosestGridPointIdx(PERIODIC_END, PERIODIC_END, n, m, closest_x_i, closest_y_i);
+    assert(closest_x_i == 2*n - 1);
+    assert(closest_y_i == m - 1);
+
+    // Test case 3: Point outside the boundary (positive)
+    setClosestGridPointIdx(PERIODIC_END + dx/2, PERIODIC_END + dy/2, n, m, closest_x_i, closest_y_i);
+    assert(closest_x_i == 1);
+    assert(closest_y_i == 0);
+
+    // Test case 4: Point outside the boundary (negative)
+    setClosestGridPointIdx(PERIODIC_START - dx/2, PERIODIC_START - dy/2, n, m, closest_x_i, closest_y_i);
+    assert(closest_x_i == 2*n - 1);
+    assert(closest_y_i == m - 1);
+
+    // Test case 5: Point exactly at the start
+    setClosestGridPointIdx(PERIODIC_START, PERIODIC_START, n, m, closest_x_i, closest_y_i);
+    assert(closest_x_i == 1);
+    assert(closest_y_i == 0);
+
+    // Test case 6: Point exactly at the middle
+
+    setClosestGridPointIdx((PERIODIC_START + PERIODIC_END) / 2 + 1e-10, (PERIODIC_START + PERIODIC_END) / 2 +1e-10, n, m, closest_x_i, closest_y_i);
+    assert(closest_x_i == 2*(n / 2)+1);
+    assert(closest_y_i == m / 2);
+
+    std::cout << "All test cases passed!" << std::endl;
 }
 
 void taylorGreenGroundTruth(double* periodic_grid,double *velocity_grid_next, int iteration, int n , int m){
@@ -65,3 +108,4 @@ void taylorGreenGroundTruth(double* periodic_grid,double *velocity_grid_next, in
         }
     }
 }
+

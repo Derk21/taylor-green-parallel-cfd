@@ -13,22 +13,8 @@
 #include "init.h"
 #include "advect.h"
 #include "diffuse.h"
+#include <cassert>
 
-
-
-#define CHECK_CUDA(call)                                               \
-    if ((call) != cudaSuccess)                                         \
-    {                                                                  \
-        std::cerr << "CUDA error at " << __LINE__ << ":" << std::endl; \
-        std::cerr << (cudaGetErrorString(call)) << std::endl;          \
-        exit(EXIT_FAILURE);                                            \
-    }
-
-
-void diffuseExplicit(float *velocity_grid,float *velocity_grid_next, int n , int m){
-    float dx = (PERIODIC_END - PERIODIC_START) / (n - 1);
-    float dy = (PERIODIC_END - PERIODIC_START) / (m - 1);
-    int nn = 2 * n;
     for (int y_i = 0; y_i < m; y_i++)
     {
         for (int i = 1; i < nn; i+=2)
@@ -143,6 +129,7 @@ void taylorGreenGroundTruth(float* periodic_grid,float *velocity_grid_next, int 
 
 int main()
 {   
+    test_setClosestGridPointIdx();
     //vortex decays exponentially -> use double to stabilize
     double *periodic_grid = (double *)malloc(N * M * 2 * sizeof(double));
     double *velocity_grid = (double *)malloc(N * M * 2 * sizeof(double));
@@ -161,6 +148,7 @@ int main()
 
     initializePeriodicGrid(periodic_grid,N,M);
     initilizeVelocityGrid(velocity_grid,periodic_grid,N,M);
+    memcpy(velocity_grid_next,velocity_grid,N*M*2*sizeof(double));
     //double *d_curr;
     //allocate memory on device    
     //CHECK_CUDA(cudaMalloc(&d_curr, N * M * sizeof(double)));

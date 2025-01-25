@@ -43,7 +43,7 @@ void diffuseExplicit(double *velocity_grid, double *velocity_grid_next, int n, i
     for(int i = 0; i < SUBSTEPS_EXPLICIT; i++)
     {
         diffuseExplicitStep(velocity_grid, velocity_grid_next, amount);
-        std::swap(velocity_grid, velocity_grid_next);
+        memcpy(velocity_grid, velocity_grid_next, sizeof(double) * 2 * n * m);
     }
 }
 
