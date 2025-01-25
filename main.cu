@@ -15,117 +15,230 @@
 #include "diffuse.h"
 #include <cassert>
 
+
+void calculateDivergence(double* velocity_grid,double*divergence,int n=N, int m=M){
+
+    //divergence by central differences
+    double dx = (PERIODIC_END - PERIODIC_START) / (n - 1);
+    double dy = (PERIODIC_END - PERIODIC_START) / (m - 1);
     for (int y_i = 0; y_i < m; y_i++)
     {
-        for (int i = 1; i < nn; i+=2)
+        for (int i = 0; i < n; i++)
         {   
-            int u_i = i-1;
-            int v_i = i;
+            int u_i = 2 * i;
+            int v_i = 2 * i + 1;
 
-            float u = velocity_grid[periodic_linear_Idx(u_i,y_i)];
-            float v = velocity_grid[periodic_linear_Idx(v_i,y_i)];
+            double u_left = velocity_grid[periodic_linear_Idx(u_i - 2,y_i)];
+            double u_right = velocity_grid[periodic_linear_Idx(u_i + 2,y_i)];
 
-            float u_left = velocity_grid[periodic_linear_Idx(u_i - 2,y_i)];
-            float u_right = velocity_grid[periodic_linear_Idx(u_i + 2,y_i)];
-            float u_up = velocity_grid[periodic_linear_Idx(u_i,y_i+1)];
-            float u_down = velocity_grid[periodic_linear_Idx(u_i,y_i-1)];
+            double v_up = velocity_grid[periodic_linear_Idx(v_i,y_i+1)];
+            double v_down = velocity_grid[periodic_linear_Idx(v_i,y_i-1)];
 
-            float v_left = velocity_grid[periodic_linear_Idx(v_i - 2,y_i)];
-            float v_right = velocity_grid[periodic_linear_Idx(v_i + 2,y_i)];
-            float v_up = velocity_grid[periodic_linear_Idx(v_i,y_i+1)];
-            float v_down = velocity_grid[periodic_linear_Idx(v_i,y_i-1)];
-
-            float u_diffusion = DIFFUSIVITY * (u_right - 2 * u + u_left) / (dx * dx) + DIFFUSIVITY * (u_up - 2 * u + u_down) / (dy * dy);
-            float v_diffusion = DIFFUSIVITY * (v_right - 2 * v + v_left) / (dx * dx) + DIFFUSIVITY * (v_up - 2 * v + v_down) / (dy * dy);
-
-            velocity_grid_next[periodic_linear_Idx(u_i,y_i)] = u + TIMESTEP * u_diffusion;
-            velocity_grid_next[periodic_linear_Idx(v_i,y_i)] = v + TIMESTEP * v_diffusion;
+            double div = (u_right - u_left) / (2 * dx) + (v_up - v_down) / (2 * dy);
+            divergence[periodic_linear_Idx(i,y_i,n,m)] = div;
         }
     }
 }
 
-void interpolateVelocity(float x_d, float y_d, int n, int m, const float *periodic_grid, float *velocity_grid)
+void poissonSolve(double*pressure,double * pressure_next, double* divergence,int n=N, int m=M)
 {
-    // get grid location
-    int u_i_closest, v_i_closest, y_i_closest;
-    setClosestGridPointIdx(x_d, y_d, n, m, v_i_closest, y_i_closest);
-    u_i_closest = v_i_closest - 1;
+    double dx = (PERIODIC_END - PERIODIC_START) / (n - 1);
+    double dy = (PERIODIC_END - PERIODIC_START) / (m - 1);
+    //double* pressure_next = (double *)malloc(n * m * sizeof(double));
 
-    // interpolation weights
-    float x_closest = periodic_grid[periodic_linear_Idx(u_i_closest, y_i_closest,n,m)];
-    float y_closest = periodic_grid[periodic_linear_Idx(v_i_closest, y_i_closest,n,m)];
-    // normalized grid distances
-    float x_diff = (x_d - x_closest) / (PERIODIC_END - PERIODIC_START);
-    float y_diff = (y_d - y_closest) / (PERIODIC_END - PERIODIC_START);
-
-    // forward bilinear interpolation
-    // containing grid cell
-    float u = (1.0f - x_diff) * (1.0f - y_diff) * velocity_grid[periodic_linear_Idx(u_i_closest, y_i_closest)];
-    float v = (1.0f - y_diff) * (1.0f - y_diff) * velocity_grid[periodic_linear_Idx(v_i_closest, y_i_closest)];
-    // x_direction next grid cell
-    u += x_diff * (1.0f - y_diff) * velocity_grid[periodic_linear_Idx(u_i_closest + 2, y_i_closest)];
-    v += x_diff * (1.0f - y_diff) * velocity_grid[periodic_linear_Idx(v_i_closest + 2, y_i_closest)];
-    // y_direction next grid cell
-    u += (1.0f - x_diff) * y_diff * velocity_grid[periodic_linear_Idx(u_i_closest, y_i_closest + 1)];
-    v += (1.0f - x_diff) * y_diff * velocity_grid[periodic_linear_Idx(v_i_closest, y_i_closest + 1)];
-    // next grid cell in diagonal direction 
-    u += (1.0f - x_diff) * (1.0f - y_diff) * velocity_grid[periodic_linear_Idx(u_i_closest + 2, y_i_closest + 1)];
-    v += (1.0f - x_diff) * (1.0f - y_diff) * velocity_grid[periodic_linear_Idx(v_i_closest + 2, y_i_closest + 1)];
-
-    // assign to closest grid point
-    velocity_grid[periodic_linear_Idx(u_i_closest, y_i_closest)] = u;
-    velocity_grid[periodic_linear_Idx(v_i_closest, y_i_closest)] = v;
-}
-
-void integrateEuler(float *velocity_grid, int &u_i, int &y_i, int &v_i, const float *periodic_grid, float &x_d, const float dt, float &y_d,int n=N, int m=M)
-{
-    float u_old = velocity_grid[periodic_linear_Idx(u_i, y_i)];
-    float v_old = velocity_grid[periodic_linear_Idx(v_i, y_i)];
-
-    float x = periodic_grid[periodic_linear_Idx(u_i, y_i,n,m)];
-    float y = periodic_grid[periodic_linear_Idx(v_i, y_i,n,m)];
-
-    x_d = fmod(x + dt * u_old, PERIODIC_END);
-    y_d = fmod(y + dt * v_old, PERIODIC_END);
-} 
-
-void advectSemiLagrange(float *velocity_grid, const float *periodic_grid, const float dt, int n, int m)
-{
-    int nn = 2 * n;
     for (int y_i = 0; y_i < m; y_i++)
     {
-        for (int i = 1; i < nn; i+=2)
+        for (int i = 1; i < n; i++)
         {   
-            int u_i = i-1;
-            int v_i = i;
-            float x_d, y_d;
-            integrateEuler(velocity_grid, u_i, y_i, v_i, periodic_grid, x_d, -dt, y_d);
-            interpolateVelocity(x_d, y_d, n, m, periodic_grid, velocity_grid);
+            double b = divergence[periodic_linear_Idx(i,y_i,n,m)];
+            double p = pressure[periodic_linear_Idx(i,y_i,n,m)];
+            double p_left = pressure[periodic_linear_Idx(i-1,y_i,n,m)];
+            double p_right = pressure[periodic_linear_Idx(i+1,y_i,n,m)];
+            double p_up = pressure[periodic_linear_Idx(i,y_i+1,n,m)];
+            double p_down = pressure[periodic_linear_Idx(i,y_i-1,n,m)];
+
+            double p_next = (p_right + p_left)*dx*dx + (p_up + p_down)*dy*dy - b*dx*dx*dy*dy;
+            p_next = p_next / (2*(dx*dx + dy*dy));
+            pressure_next[periodic_linear_Idx(i,y_i,n,m)] = p_next;
         }
+    } 
+    memcpy(pressure,pressure_next,n*m*sizeof(double));
+}
+
+void constructDiscretizedLaplacian(double* laplace_discrete,int n=N){
+    //discretized laplacian is always same for grid -> unit laplacian is sufficient
+    //order 2
+    for (int i = 0; i < n; i++)
+    {
+        laplace_discrete[periodic_linear_Idx(i,i,n,n)] = -4.0;
+        laplace_discrete[periodic_linear_Idx(i,i-1,n,n)] = 1.0;
+        laplace_discrete[periodic_linear_Idx(i,i+1,n,n)] = 1.0;
+        laplace_discrete[periodic_linear_Idx(i-1,i,n,n)] = 1.0;
+        laplace_discrete[periodic_linear_Idx(i+1,i,n,n)] = 1.0;
     }
 }
 
-void taylorGreenGroundTruth(float* periodic_grid,float *velocity_grid_next, int iteration, int n , int m){
-    float dx = (PERIODIC_END - PERIODIC_START) / (n - 1);
-    float dy = (PERIODIC_END - PERIODIC_START) / (m - 1);
-    int nn = 2 * n;
-    float t = iteration * TIMESTEP;
-    float F = exp(-2.0f * DIFFUSIVITY * t);
+//void solveDense(double* A, double* b, double* x, int n=N){
+    ////A is discretized laplacian
+    ////b is divergence (flat)
+    ////x is pressure (flat)
+
+    ////LU decomposition with partial pivoting
+    ////needs to be double for cusolver
+    ////probably many are 0 -> TODO: sparse solver
+
+    ////adapted from https://github.com/NVIDIA/CUDALibrarySamples/tree/master/cuSOLVER/getrf
+
+    //cusolverDnHandle_t cusolverH = NULL;
+    //cudaStream_t stream = NULL;
+    //const int64_t lda = n;
+    //const int64_t ldb = n;
+    //std::vector<int64_t> Ipiv(n, 0);
+    ////1. put into cublas format
+    //double *d_A, *d_b, *d_x;
+    //CHECK_CUDA(cudaMalloc(&d_A, n * n * sizeof(double)));
+    //CHECK_CUDA(cudaMalloc(&d_b, n * sizeof(double)));
+    //CHECK_CUDA(cudaMalloc(&d_x, n * sizeof(double)));
+
+    //int64_t *d_Ipiv = nullptr; /* pivoting sequence */
+
+    ////copy to device
+    ////CHECK_CUDA(cudaMemcpy(d_A, A, n * n * sizeof(double), cudaMemcpyHostToDevice));
+    ////CHECK_CUDA(cudaMemcpy(d_b, b, n * sizeof(double), cudaMemcpyHostToDevice));
+    //CHECK_CUDA(cudaMemcpy(d_x, x, n * sizeof(double), cudaMemcpyHostToDevice));
+
+    //CHECK_CUDA(cudaMemcpyAsync(d_A, A, sizeof(double) * n * n, cudaMemcpyHostToDevice,
+                               //stream));
+    //CHECK_CUDA(cudaMemcpyAsync(d_b, b, sizeof(double) * n * n, cudaMemcpyHostToDevice,
+                               //stream));
+    //CHECK_CUDA(cudaMalloc(reinterpret_cast<void **>(&d_Ipiv), sizeof(int64_t) * Ipiv.size()));
+    ////CHECK_CUDA(cudaMalloc(reinterpret_cast<void **>(&d_info), sizeof(int)));
+
+
+    //const int pivot_on = 1;
+
+    //if (pivot_on) {
+        //std::printf("pivot is on : compute P*A = L*U \n");
+    //} else {
+        //std::printf("pivot is off: compute A = L*U (not numerically stable)\n");
+    //}
+
+    //// solver handle
+    //cusolverDnHandle_t cusolverH;
+    //CUSOLVER_CHECK(cusolverDnCreate(&cusolverH));
+
+    //CHECK_CUDA(cudaStreamCreateWithFlags(&stream, cudaStreamNonBlocking));
+    //CUSOLVER_CHECK(cusolverDnSetStream(cusolverH, stream));
+
+    //cusolverDnParams_t params;
+    //CUSOLVER_CHECK(cusolverDnCreateParams(&params));
+        
+    //CUSOLVER_CHECK(cusolverDnSetAdvOptions(params, CUSOLVERDN_GETRF, CUSOLVER_ALG_0));
+
+    //CHECK_CUDA(cudaMalloc(reinterpret_cast<void **>(&d_A), sizeof(double) * n * n));
+    //CHECK_CUDA(cudaMalloc(reinterpret_cast<void **>(&d_b), sizeof(double) * n * n));
+
+
+    ////workspace 
+    //int workspace_size = 0;
+    //CHECK_CUSOLVE(cusolverDnSgetrf_bufferSize(cusolver_handle, CUBLAS_FILL_MODE_FULL, n, d_A, n, &workspace_size));
+
+    //double* d_workspace;
+    //CHECK_CUDA(cudaMalloc(&d_workspace, sizeof(double) * workspace_size));
+
+    //int* dev_info;
+    //CHECK_CUDA(cudaMalloc(&dev_info, sizeof(int)));
+
+    ////Cholesky factorization
+    //CHECK_CUSOLVE(
+        //cusolverDnDpotrf(cusolver_handle, CUBLAS_FILL_MODE_FULL, n, d_A, n, d_workspace, workspace_size, dev_info)
+    //);
+
+    //// Solve for x (forward and backward substitution)
+    //CHECK_CUSOLVE(
+        //cusolverDnDpotrs(cusolver_handle, CUBLAS_FILL_MODE_FULL, n, 1, d_A, n, d_b, n, dev_info)
+    //);
+
+    //// Copy the solution back to the host
+    //CHECK_CUDA(cudaMemcpy(x, d_x, n * sizeof(double), cudaMemcpyDeviceToHost));
+
+    //// Check for errors
+    //int info;
+    //CHECK_CUDA(cudaMemcpy(&info, dev_info, sizeof(int), cudaMemcpyDeviceToHost));
+    //if (info != 0) {
+        //std::cerr << "cuSolver failed with info = " << info << std::endl;
+    //} else {
+        //std::cout << "Solution vector x:" << std::endl;
+        //for (int i = 0; i < n; ++i) {
+            //std::cout << x[i] << std::endl;
+        //}
+    //}
+
+    //// Free resources
+    //CHECK_CUDA(cudaFree(d_A));
+    //CHECK_CUDA(cudaFree(d_b));
+    //CHECK_CUDA(cudaFree(d_x));
+    //CHECK_CUDA(cudaFree(d_workspace));
+    //CHECK_CUDA(cudaFree(dev_info));
+    //CHECK_CUSOLVE(cusolverDnDestroy(cusolver_handle));
+//}
+
+double l1_norm(double* a, double* b, int n){
+    //mean reduction
+    double sum = 0.0;
+    for (int i = 0; i < n; i++)
+    {
+        sum += abs(a[i] - b[i]);
+    }
+    return sum;
+}
+
+void make_incompressible(double* velocity_grid, double* divergence, double*pressure, int n=N, int m=M){
+    calculateDivergence(velocity_grid,divergence);
+
+    //explicit solve for now 
+    const double TOLERANCE = 1.0;
+    double *pressure_next = (double *)malloc(n * m * sizeof(double));
+    memcpy(pressure_next,pressure,n*m*sizeof(double));
+    for(int i = 0; i < 100; i++){
+        poissonSolve(pressure,pressure_next,divergence);
+        double loss = l1_norm(pressure,divergence,n*m);
+        std::cout << "Loss: " << loss << std::endl;
+        if (loss < TOLERANCE){
+            break;
+        }
+        //TODO: l1 norm of pressure - divergence
+    }
+    free(pressure_next);
+    //TODO: implicit solver 
+
+    //constructDiscretizedLaplacian(laplace);
+    //solveDense(laplace,divergence,pressure,n);
+    //calculate gradient
+    double dx = (PERIODIC_END - PERIODIC_START) / (n - 1);
+    double dy = (PERIODIC_END - PERIODIC_START) / (m - 1);
     for (int y_i = 0; y_i < m; y_i++)
     {
-        for (int i = 1; i < nn; i+=2)
+        for (int i = 1; i < n; i++)
         {   
-            int u_i = i-1;
-            int v_i = i;
+            int u_i = 2 * (i - 1);
+            int v_i = 2 * i;
+            //TODO: check which finite difference to use
+            double p = pressure[periodic_linear_Idx(i,y_i,n,m)];
+            double p_right = pressure[periodic_linear_Idx(i+1,y_i,n,m)];
+            double p_down = pressure[periodic_linear_Idx(i,y_i+1,n,m)];
+            double p_dx = (p_right - p) / dx;
+            double p_dy = (p_right - p) / dy;
 
-            float x = periodic_grid[periodic_linear_Idx(u_i,y_i)];
-            float y = periodic_grid[periodic_linear_Idx(v_i,y_i)];
-
-            velocity_grid_next[periodic_linear_Idx(u_i,y_i)] =  sin(x) * cos(y) * F;
-            velocity_grid_next[periodic_linear_Idx(v_i,y_i)] = -1.0f * cos(x) * sin(y) * F;
+            //TODO:scale somehow with dt?
+            velocity_grid[periodic_linear_Idx(u_i,y_i)] -= p_dx;
+            velocity_grid[periodic_linear_Idx(v_i,y_i)] -= p_dy;
         }
     }
+    
+
 }
+
 
 int main()
 {   
@@ -165,7 +278,7 @@ int main()
         //plotVelocityGrid(periodic_grid, velocity_grid, N, M, PERIODIC_START, PERIODIC_END,plot_name.str(), dirName);
         //plot_name.str("");
         advectSemiLagrange(velocity_grid,velocity_grid_next,periodic_grid,TIMESTEP,N,M);
-        //make_incompressible(velocity_grid,divergence,pressure);
+        make_incompressible(velocity_grid,divergence,pressure);
         //taylorGreenGroundTruth(periodic_grid,velocity_grid_next,i,N,M);
         //std::swap(velocity_grid,velocity_grid_next);
         plot_name << "velocity_"<< std::setw(4) << std::setfill('0') << i;
