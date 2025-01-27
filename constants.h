@@ -7,4 +7,4 @@
 #define TIMESTEP 0.5 
 
 //explicit diffusion
-#define SUBSTEPS_EXPLICIT 10
+#define SUBSTEPS_EXPLICIT 100 //40-80 are recommended

@@ -20,6 +20,16 @@
         }                                                                                          \
     } while (0)
 
+void print_matrix(const int &m, const int &n, const double *A, const int &lda) {
+    //copied from https://github.com/NVIDIA/CUDALibrarySamples/blob/master/cuSOLVER/utils/cusolver_utils.h
+    for (int i = 0; i < m; i++) {
+        for (int j = 0; j < n; j++) {
+            std::printf("%0.2f ", A[j * lda + i]);
+        }
+        std::printf("\n");
+    }
+}
+
 int periodic_linear_Idx(const int &x, const int &y, const int bound_x = 2*N,const int bound_y = M)
 {   
     int mod_x = (x + bound_x) % bound_x; // ensures non-negative result
@@ -109,3 +119,24 @@ void taylorGreenGroundTruth(double* periodic_grid,double *velocity_grid_next, in
     }
 }
 
+void setPressureGroundTruth(double *pressure_grid,double * periodic_grid,int iteration, int n ,int m)
+{
+    double dx = (PERIODIC_END - PERIODIC_START) / (n - 1);
+    double dy = (PERIODIC_END - PERIODIC_START) / (m - 1);
+    double t = iteration * TIMESTEP;
+    double F = exp(-2.0 * DIFFUSIVITY * t);
+    double rho = 0.1;
+    for (int y_i = 0; y_i < m; y_i++)
+    {
+        for (int i = 1; i < n; i++)
+        {
+
+            int u_i = 2 * (i-1);
+            int v_i = 2 * i;
+
+            double x = periodic_grid[periodic_linear_Idx(u_i,y_i,n,m)];
+            double y = periodic_grid[periodic_linear_Idx(v_i,y_i,n,m)];
+            pressure_grid[y_i * n + i] = (rho / 4 )* (cos(2*x)+cos(2*y))*pow(F,2); 
+        }
+    }
+}

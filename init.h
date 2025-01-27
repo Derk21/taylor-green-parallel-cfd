@@ -34,25 +34,13 @@ void initilizeVelocityGrid(double *velocity_grid,double *periodic_grid,int n ,in
     }
 }
 
-void initilizePressure(double *pressure_grid,double * periodic_grid, int n ,int m)
+void initilizePressure(double *pressure_grid, int n, int m)
 {
-    double dx = (PERIODIC_END - PERIODIC_START) / (n - 1);
-    double dy = (PERIODIC_END - PERIODIC_START) / (m - 1);
-    //int nn = 2 * n;
-    //double t = iteration * TIMESTEP;
-    //double F = exp(-2.0 * DIFFUSIVITY * 1.0);
-    double F = 1.0;
     for (int y_i = 0; y_i < m; y_i++)
     {
         for (int i = 1; i < n; i++)
         {
-
-            int u_i = 2 * (i-1);
-            int v_i = 2 * i;
-
-            double x = periodic_grid[periodic_linear_Idx(u_i,y_i,n,m)];
-            double y = periodic_grid[periodic_linear_Idx(v_i,y_i,n,m)];
-            pressure_grid[y_i * n + i] = (1.0 / 4 )* (cos(2*x)+cos(2*y))*pow(F,2); 
+            pressure_grid[y_i * n + i] = 0.0; 
         }
     }
 }
