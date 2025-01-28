@@ -20,56 +20,43 @@ BUILD_DIR = build
 TEST_DIR = tests
 
 # Source files
-SRC = $(SRC_DIR)/main.cu $(SRC_DIR)/init.cu $(SRC_DIR)/pressure_correction.cu $(SRC_DIR)/solve.cu $(SRC_DIR)/utils.cu $(SRC_DIR)/plotting.cu $(SRC_DIR)/advect.cu $(SRC_DIR)/diffuse.cu 
-TEST_SRC = $(TEST_DIR)/test_pressure_correction.cu $(TEST_DIR)/test_solve.cu
+SRC = $(filter-out $(SRC_DIR)/main.cu, $(wildcard $(SRC_DIR)/*.cu))
+MAIN_SRC = $(SRC_DIR)/main.cu
+TEST_SRC = $(wildcard $(TEST_DIR)/*.cu)
 
 # Executable names
 EXEC = $(BUILD_DIR)/main
 DEBUG_EXEC = $(BUILD_DIR)/main_debug
-TEST_EXEC = $(BUILD_DIR)/test_pressure_correction $(BUILD_DIR)/test_solve
-DEBUG_TEST_EXEC = $(BUILD_DIR)/test_pressure_correction_debug $(BUILD_DIR)/test_solve_debug
+TEST_EXEC = $(patsubst $(TEST_DIR)/%.cu, $(BUILD_DIR)/%, $(TEST_SRC))
+DEBUG_TEST_EXEC = $(patsubst $(TEST_DIR)/%.cu, $(BUILD_DIR)/%_debug, $(TEST_SRC))
 
 # Target to build the executable
-all: $(EXEC) $(DEBUG_EXEC) $(TEST_EXEC) $(DEBUG_TEST_EXEC)
+all: $(EXEC) $(DEBUG_EXEC)
 
 # Rule for compiling the CUDA source files
-$(EXEC): $(SRC)
-	$(NVCC) $(NVCC_FLAGS) $(SRC) -o $@ $(LIBS) $(INCLUDE_DIRS)
+$(EXEC): $(MAIN_SRC) $(SRC)
+	$(NVCC) $(NVCC_FLAGS) $^ -o $@ $(LIBS) $(INCLUDE_DIRS)
 
-$(DEBUG_EXEC): $(SRC)
-	$(NVCC) $(DEBUG_FLAGS) $(SRC) -o $@ $(LIBS) $(INCLUDE_DIRS)
+$(DEBUG_EXEC): $(MAIN_SRC) $(SRC)
+	$(NVCC) $(DEBUG_FLAGS) $^ -o $@ $(LIBS) $(INCLUDE_DIRS)
 
 # Rules for compiling the test files
-$(BUILD_DIR)/test_pressure_correction: $(TEST_DIR)/test_pressure_correction.cu $(SRC_DIR)/pressure_correction.cu $(SRC_DIR)/utils.cu $(SRC_DIR)/solve.cu
+$(BUILD_DIR)/%: $(TEST_DIR)/%.cu $(SRC)
 	$(NVCC) $(NVCC_FLAGS) $^ -o $@ $(LIBS) $(INCLUDE_DIRS)
 
-$(BUILD_DIR)/test_solve: $(TEST_DIR)/test_solve.cu $(SRC_DIR)/solve.cu $(SRC_DIR)/utils.cu 
-	$(NVCC) $(NVCC_FLAGS) $^ -o $@ $(LIBS) $(INCLUDE_DIRS)
-
-# Rules for compiling the test files with debug flags
-$(BUILD_DIR)/test_pressure_correction_debug: $(TEST_DIR)/test_pressure_correction.cu $(SRC_DIR)/pressure_correction.cu $(SRC_DIR)/utils.cu $(SRC_DIR)/solve.cu
+$(BUILD_DIR)/%_debug: $(TEST_DIR)/%.cu $(SRC)
 	$(NVCC) $(DEBUG_FLAGS) $^ -o $@ $(LIBS) $(INCLUDE_DIRS)
 
-$(BUILD_DIR)/test_solve_debug: $(TEST_DIR)/test_solve.cu $(SRC_DIR)/solve.cu $(SRC_DIR)/utils.cu
-	$(NVCC) $(DEBUG_FLAGS) $^ -o $@ $(LIBS) $(INCLUDE_DIRS)
+test: $(TEST_EXEC) $(DEBUG_TEST_EXEC)
 
-# Clean target to remove object files and executable
 clean:
 	rm -f $(BUILD_DIR)/*
 
-# Run the program
 run: $(EXEC)
 	./$(EXEC)
 
-# Run the tests
-test: $(TEST_EXEC)
-	./$(BUILD_DIR)/test_pressure_correction
-	./$(BUILD_DIR)/test_solve
-
-# Run the debug tests
-debug_test: $(DEBUG_TEST_EXEC)
-	./$(BUILD_DIR)/test_pressure_correction_debug
-	./$(BUILD_DIR)/test_solve_debug
+testrun: $(TEST_EXEC)
+	@for test in $(TEST_EXEC); do ./$$test; done
 
 # Phony targets (not actual files)
-.PHONY: all clean run test debug_test
+.PHONY: all clean run test testrun debug_test
