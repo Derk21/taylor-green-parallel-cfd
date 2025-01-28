@@ -2,34 +2,21 @@
 
 void make_incompressible(double* velocity_grid, double* divergence, double*pressure, int n, int m){
     calculateDivergence(velocity_grid,divergence);
+    //cuBlas is column major
+    switchRowColMajor(divergence,m,n);
 
-    //THERE IS NO EXPLICIT SOLVER FOR PRESSURE CORRECTION (https://en.wikipedia.org/wiki/Discrete_Poisson_equation)
-    //explicit solve for now 
-    //const double TOLERANCE = 1.0;
-    //double *pressure_next = (double *)malloc(n * m * sizeof(double));
-    //memcpy(pressure_next,pressure,n*m*sizeof(double));
-    //for(int i = 0; i < 10000; i++){
-        //jacobiStep(pressure,pressure_next,divergence);
-        //double loss = get_max_diff(pressure,divergence,n*m);
-        //std::cout << "Loss: " << loss << std::endl;
-        //if (loss < TOLERANCE){
-            //break;
-        //}
-        ////TODO: l1 norm of pressure - divergence
-    //}
-
-    //free(pressure_next);
-    //TODO: implicit solver 
     double *laplace = (double *)malloc(n * m * n * m * sizeof(double));
     //std::cout << "Divergence" << std::endl;
     //print_matrix(m, n, divergence, n);
     //std::cout << "Laplacian" << std::endl;
-    constructDiscretizedLaplacian(laplace);
+    constructDiscretizedLaplacian(laplace); // LP^T = LP -> no need to transpose
+
     //print_matrix(n*m, n*m, laplace, n*m);
     size_t pressure_size = n*m;
     solveDense(laplace,divergence,pressure,pressure_size);
     std::cout << "Pressure" << std::endl;
-    print_matrix(m, n, pressure, n);
+    switchRowColMajor(pressure,n,m);
+    print_matrix_row_major(m, n, pressure, n);
     //free(laplace);
     //calculate gradient
     double dx = (PERIODIC_END - PERIODIC_START) / (n - 1);

@@ -2,7 +2,7 @@
 #include <cassert>
 
 void test_divergence(){
-    int n = 4;
+    int n = NUM_N;
     double *velocity_grid = (double *)malloc(n * n * 2 * sizeof(double));
     double *divergence = (double *)malloc(n * n * sizeof(double));
     for (int y_i = 0; y_i < n; y_i++)
@@ -13,7 +13,7 @@ void test_divergence(){
             velocity_grid[y_i * (2*n) + i] = 1.0;
         }
     }
-    print_matrix(n, 2*n, velocity_grid, 2*n);
+    print_matrix(2*n, n, velocity_grid, 2*n);
     calculateDivergence(velocity_grid,divergence,n,n);
     print_matrix(n, n, divergence, n);
     for (int i = 0; i < n*n; i++)
@@ -22,6 +22,7 @@ void test_divergence(){
     }
     free(velocity_grid);
     free(divergence);
+    std::cout << "Divergence is correct" << std::endl;
 }
 
 void test_laplace(){ 

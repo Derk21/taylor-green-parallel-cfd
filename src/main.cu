@@ -54,13 +54,13 @@ int main()
     std::string plot_name("velocity_0000");
     plotVelocityGrid(periodic_grid, velocity_grid, NUM_N, M, PERIODIC_START, PERIODIC_END,plot_name, dirName);
     for (int i = 1; i < ITERATIONS+1; i++){
-        //diffuseExplicit(velocity_grid,velocity_grid_next);
+        diffuseExplicit(velocity_grid,velocity_grid_next);
         std::stringstream plot_name;
         //plot_name << "velocity_"<< std::setw(4) << std::setfill('0') << i << "_diffused";
         //plotVelocityGrid(periodic_grid, velocity_grid, NUM_N, M, PERIODIC_START, PERIODIC_END,plot_name.str(), dirName);
         //plot_name.str("");
         advectSemiLagrange(velocity_grid,velocity_grid_next,periodic_grid,TIMESTEP);
-        //make_incompressible(velocity_grid,divergence,pressure);
+        make_incompressible(velocity_grid,divergence,pressure);
         //taylorGreenGroundTruth(periodic_grid,velocity_grid_next,i,NUM_N,M);
         //std::swap(velocity_grid,velocity_grid_next);
         plot_name << "velocity_"<< std::setw(4) << std::setfill('0') << i;

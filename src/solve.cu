@@ -1,6 +1,8 @@
 #include "solve.h"
 
 void solveDense(const double * A, const double *  B, double * X, size_t m){
+    /*CAUTION: INPUT NEEDS TO BE COLUMN MAJOR */
+
     //A is discretized laplacian
     //b is divergence (flat)
     //x is pressure (flat)
@@ -97,7 +99,7 @@ void solveDense(const double * A, const double *  B, double * X, size_t m){
     //print_matrix(m, m, LU.data(), lda);
     //printf("=====\n");
 
-    
+    //CUBLAS_OP_N transposes solution?
     if (pivot_on) {
         CUSOLVER_CHECK(cusolverDnDgetrs(cusolverH, CUBLAS_OP_N, m, 1, /* nrhs */
                                         d_A, lda, d_Ipiv, d_B, ldb, d_info));

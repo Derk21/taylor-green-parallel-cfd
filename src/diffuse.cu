@@ -1,7 +1,6 @@
 #include "diffuse.h"
 
-
-void diffuseExplicitStep( double *velocity_grid, double *velocity_grid_next, double amount,int n, int m)
+void diffuseExplicitStep(const double *velocity_grid, double *velocity_grid_next, double amount,int n, int m)
 {
     double dx = (PERIODIC_END - PERIODIC_START) / (n - 1);
     double dy = (PERIODIC_END - PERIODIC_START) / (m - 1);
@@ -37,11 +36,19 @@ void diffuseExplicitStep( double *velocity_grid, double *velocity_grid_next, dou
 
 void diffuseExplicit(double *velocity_grid, double *velocity_grid_next, int n, int m)
 {
-    double amount = DIFFUSIVITY * (TIMESTEP / SUBSTEPS_EXPLICIT);
+    //double amount = DIFFUSIVITY * (TIMESTEP / SUBSTEPS_EXPLICIT);
+    double amount = (TIMESTEP / SUBSTEPS_EXPLICIT);
     //TODO: add guard for breaking cfl condition
     for(int i = 0; i < SUBSTEPS_EXPLICIT; i++)
     {
         diffuseExplicitStep(velocity_grid, velocity_grid_next, amount);
         memcpy(velocity_grid, velocity_grid_next, sizeof(double) * 2 * n * m);
+        //std::cout << "diffusion step:" << i << std::endl;
+        //print_matrix_row_major(2*n,m, velocity_grid,2*n);
     }
+}
+
+void diffuseImplicit(double *velocity_grid, double *velocity_grid_next, int n, int m){
+   int nn = 2 * n; 
+   std::cout << "Diffuse Implicit" << nn << std::endl;
 }

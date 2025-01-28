@@ -8,8 +8,18 @@
     "makefile.launchConfigurations": [
         {
             "cwd": "/home/florian/projects/tailor-green-vortex",
-            "binaryPath": "/home/florian/projects/tailor-green-vortex/main_debug",
+            "binaryPath": "/home/florian/projects/tailor-green-vortex/build/main_debug",
             "binaryArgs": []
-        }
+        },
+        {
+            "cwd": "/home/florian/projects/tailor-green-vortex",
+            "binaryPath": "/home/florian/projects/tailor-green-vortex/build/main",
+            "binaryArgs": []
+        },
+        {
+            "cwd": "/home/florian/projects/tailor-green-vortex",
+            "binaryPath": "/home/florian/projects/tailor-green-vortex/build/test_diffusion_debug",
+            "binaryArgs": []
+        },
     ]
 }

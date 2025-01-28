@@ -26,9 +26,11 @@
     } while (0)
 
 void print_matrix(const int &m, const int &n, const double *A, const int &lda);
+void print_matrix_row_major(const int &m, const int &n, const double *A, const int &lda); 
 int periodic_linear_Idx(const int &x, const int &y, const int bound_x = 2*NUM_N, const int bound_y = M);
 void setClosestGridPointIdx(double x, double y, int n, int m, int &closest_x_i, int &closest_y_i);
 void test_setClosestGridPointIdx();
 bool is_close(const double &a, const double &b, const double &tolerance = 1e-6);
+void switchRowColMajor(double *A_rowMajor, const int &m, const int &n);
 
 #endif // UTILS_H

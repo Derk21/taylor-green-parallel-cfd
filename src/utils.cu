@@ -1,6 +1,16 @@
 #include "utils.h"
 
+void print_matrix_row_major(const int &m, const int &n, const double *A, const int &lda) {
+    //adapted from https://github.com/NVIDIA/CUDALibrarySamples/blob/master/cuSOLVER/utils/cusolver_utils.h
+    for (int j = 0; j < n; j++) {
+        for (int i = 0; i < m; i++) {
+            std::printf("%0.8f ", A[j * lda + i]);
+        }
+        std::printf("\n");
+    }
+}
 void print_matrix(const int &m, const int &n, const double *A, const int &lda) {
+    //is column major (column by column)
     //copied from https://github.com/NVIDIA/CUDALibrarySamples/blob/master/cuSOLVER/utils/cusolver_utils.h
     for (int i = 0; i < m; i++) {
         for (int j = 0; j < n; j++) {
@@ -8,6 +18,19 @@ void print_matrix(const int &m, const int &n, const double *A, const int &lda) {
         }
         std::printf("\n");
     }
+}
+
+void switchRowColMajor(double *A, const int &m, const int &n)
+{
+    //converts A from row major to column major 
+    double * temp = (double *)malloc(m * n * sizeof(double));
+    for (int i = 0; i < m; ++i) {
+        for (int j = 0; j < n; ++j) {
+            temp[j * m + i] = A[i * n + j];
+        }
+    }
+    memcpy(A, temp, m * n * sizeof(double));
+    free(temp);
 }
 
 int periodic_linear_Idx(const int &x, const int &y, const int bound_x ,const int bound_y )
