@@ -1,6 +1,4 @@
-#pragma once
-#include "constants.h"
-#include "utils.h"
+#include "init.h"
 
 void initializePeriodicGrid(double *periodic_grid, int n, int m)
 {

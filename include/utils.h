@@ -1,0 +1,34 @@
+#ifndef UTILS_H
+#define UTILS_H
+
+#include "constants.h"
+#include <cmath>
+#include <iostream>
+#include <stdexcept>
+#include <vector>
+
+#define CHECK_CUDA(call)                                               \
+    if ((call) != cudaSuccess)                                         \
+    {                                                                  \
+        std::cerr << "CUDA error at " << __LINE__ << ":" << std::endl; \
+        std::cerr << (cudaGetErrorString(call)) << std::endl;          \
+        exit(EXIT_FAILURE);                                            \
+    }
+
+//copied from https://github.com/NVIDIA/CUDALibrarySamples/blob/master/cuSOLVER/utils/cusolver_utils.h
+#define CUSOLVER_CHECK(err)                                                                        \
+    do {                                                                                           \
+        cusolverStatus_t err_ = (err);                                                             \
+        if (err_ != CUSOLVER_STATUS_SUCCESS) {                                                     \
+            printf("cusolver error %d at %s:%d\n", err_, __FILE__, __LINE__);                      \
+            throw std::runtime_error("cusolver error");                                            \
+        }                                                                                          \
+    } while (0)
+
+void print_matrix(const int &m, const int &n, const double *A, const int &lda);
+int periodic_linear_Idx(const int &x, const int &y, const int bound_x = 2*NUM_N, const int bound_y = M);
+void setClosestGridPointIdx(double x, double y, int n, int m, int &closest_x_i, int &closest_y_i);
+void test_setClosestGridPointIdx();
+bool is_close(const double &a, const double &b, const double &tolerance = 1e-6);
+
+#endif // UTILS_H

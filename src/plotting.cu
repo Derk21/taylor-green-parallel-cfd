@@ -1,15 +1,4 @@
-#pragma once
-#include <iostream>
-#include <fstream>
-#include <gnuplot-iostream.h>
-#include <string>
-#include <filesystem>
-#include <chrono>
-#include <iomanip>
-#include <sstream>
-#include <algorithm>
-#include <vector>
-#include "utils.h"
+#include "plotting.h"
 
 void plotPeriodicGrid(double *periodic_grid, int n, int m) {
     std::ofstream data_file_x("periodic_grid_data_x.dat");

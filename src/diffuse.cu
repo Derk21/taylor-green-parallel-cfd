@@ -1,8 +1,7 @@
-#pragma once
-#include "constants.h"
-#include "utils.h"
+#include "diffuse.h"
 
-void diffuseExplicitStep( double *velocity_grid, double *velocity_grid_next, double amount,int n=N, int m=M)
+
+void diffuseExplicitStep( double *velocity_grid, double *velocity_grid_next, double amount,int n, int m)
 {
     double dx = (PERIODIC_END - PERIODIC_START) / (n - 1);
     double dy = (PERIODIC_END - PERIODIC_START) / (m - 1);
@@ -46,4 +45,3 @@ void diffuseExplicit(double *velocity_grid, double *velocity_grid_next, int n, i
         memcpy(velocity_grid, velocity_grid_next, sizeof(double) * 2 * n * m);
     }
 }
-

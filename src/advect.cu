@@ -1,7 +1,4 @@
-#pragma once
-#include "constants.h"
-#include "utils.h"
-#include <cmath>
+#include "advect.h"
 
 void interpolateVelocity(double x_d, double y_d, int n, int m, const double *periodic_grid, double *velocity_grid, double * velocity_grid_next)
 {
@@ -36,7 +33,7 @@ void interpolateVelocity(double x_d, double y_d, int n, int m, const double *per
     velocity_grid_next[periodic_linear_Idx(v_i_closest, y_i_closest)] = v;
 }
 
-void integrateEuler(double *velocity_grid, int &u_i, int &y_i, int &v_i, const double *periodic_grid, double &x_d,  double &y_d,const double dt,int n=N, int m=M)
+void integrateEuler(double *velocity_grid, int &u_i, int &y_i, int &v_i, const double *periodic_grid, double &x_d,  double &y_d,const double dt,int n=NUM_N, int m=M)
 {
     double u_old = velocity_grid[periodic_linear_Idx(u_i, y_i)];
     double v_old = velocity_grid[periodic_linear_Idx(v_i, y_i)];
