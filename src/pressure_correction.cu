@@ -59,6 +59,8 @@ void make_incompressible(double* velocity_grid, double* divergence, double*press
             //TODO:scale somehow with dt?
             velocity_grid[periodic_linear_Idx(u_i,y_i)] -= p_dx;
             velocity_grid[periodic_linear_Idx(v_i,y_i)] -= p_dy;
+            //velocity_grid[periodic_linear_Idx(u_i,y_i)] += p_dx;
+            //velocity_grid[periodic_linear_Idx(v_i,y_i)] += p_dy;
         }
     }
     
@@ -124,6 +126,7 @@ void jacobiStep(double*pressure,double * pressure_next, double* divergence,int n
 void constructDiscretizedLaplacian(double* laplace_discrete,int n){
     //discretized laplacian is always same for grid -> unit laplacian is sufficient
     //order 2
+    double dx = (PERIODIC_END - PERIODIC_START) / (n - 1);
     std::vector<double> lp_(n*n*n*n, 0);
     std::copy(lp_.begin(), lp_.end(), laplace_discrete);
     for (int lp_row = 0; lp_row < n*n; lp_row++)
@@ -133,15 +136,15 @@ void constructDiscretizedLaplacian(double* laplace_discrete,int n){
         int src_x = lp_row % n; 
 
         int lp_center= src_y * n + src_x;
-        laplace_discrete[lp_row * n*n + lp_center] = 4.0;
+        laplace_discrete[lp_row * n*n + lp_center] = 4.0 / (dx*dx);
         //neighbors
         int up_src = periodic_linear_Idx(src_x, src_y - 1, n, n);
         int down_src = periodic_linear_Idx(src_x, src_y + 1, n, n);
         int left_src = periodic_linear_Idx(src_x - 1, src_y, n, n);
         int right_src = periodic_linear_Idx(src_x + 1, src_y, n, n);
-        laplace_discrete[lp_row * n * n + up_src] = -1.0;
-        laplace_discrete[lp_row * n * n + down_src] = -1.0;
-        laplace_discrete[lp_row * n * n + left_src] = -1.0;
-        laplace_discrete[lp_row * n * n + right_src] = -1.0;
+        laplace_discrete[lp_row * n * n + up_src] = -1.0 *(dx*dx);
+        laplace_discrete[lp_row * n * n + down_src] = -1.0 *(dx*dx);
+        laplace_discrete[lp_row * n * n + left_src] = -1.0 * (dx*dx);
+        laplace_discrete[lp_row * n * n + right_src] = -1.0 * (dx*dx);
     }
 }
