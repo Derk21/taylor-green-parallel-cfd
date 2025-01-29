@@ -25,8 +25,8 @@ void diffuseExplicitStep(const double *velocity_grid, double *velocity_grid_next
             double v_up = velocity_grid[periodic_linear_Idx(v_i, y_i + 1)];
             double v_down = velocity_grid[periodic_linear_Idx(v_i, y_i - 1)];
 
-            double u_diffusion = DIFFUSIVITY * (u_right - 2 * u + u_left) / (dx * dx) + DIFFUSIVITY * (u_up - 2 * u + u_down) / (dy * dy);
-            double v_diffusion = DIFFUSIVITY * (v_right - 2 * v + v_left) / (dx * dx) + DIFFUSIVITY * (v_up - 2 * v + v_down) / (dy * dy);
+            double u_diffusion = (u_right - 2 * u + u_left) / (dx * dx) + (u_up - 2 * u + u_down) / (dy * dy);
+            double v_diffusion = (v_right - 2 * v + v_left) / (dx * dx) + (v_up - 2 * v + v_down) / (dy * dy);
 
             velocity_grid_next[periodic_linear_Idx(u_i, y_i)] = u + amount * u_diffusion;
             velocity_grid_next[periodic_linear_Idx(v_i, y_i)] = v + amount * v_diffusion;
@@ -36,8 +36,7 @@ void diffuseExplicitStep(const double *velocity_grid, double *velocity_grid_next
 
 void diffuseExplicit(double *velocity_grid, double *velocity_grid_next, int n, int m)
 {
-    //double amount = DIFFUSIVITY * (TIMESTEP / SUBSTEPS_EXPLICIT);
-    double amount = (TIMESTEP / SUBSTEPS_EXPLICIT);
+    double amount = DIFFUSIVITY * (TIMESTEP / SUBSTEPS_EXPLICIT);
     //TODO: add guard for breaking cfl condition
     for(int i = 0; i < SUBSTEPS_EXPLICIT; i++)
     {

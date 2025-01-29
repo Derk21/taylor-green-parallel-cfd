@@ -3,8 +3,8 @@
 - Development of a parallelized fluid simulation (diffusion, advection, pressure correction)
 - Currently working on cpu-implementation to verify before parallelizing
 
-## Current state of simulation (without pressure correction):
-![Simulation](progress_documentation/diffusion_advection_correct.gif)
+## Current state of simulation (diffusion+pressure correction, advection verification in progress):
+![Simulation](progress_documentation/correct_diffusion_pressure_correction.gif)
 
 ## Analytical Solution:
 ![Analytical Solution](progress_documentation/ground_truth.gif)
