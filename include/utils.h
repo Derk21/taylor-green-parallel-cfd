@@ -45,4 +45,6 @@ double calculateRMSE(const std::vector<double>& reference, const std::vector<dou
 
 double calculateRelativeErr(const std::vector<double>& reference, double rmse);
 
+void taylorGreenGroundTruth(double* periodic_grid,double *velocity_grid_next, int iteration, int n=NUM_N , int m=M);
+
 #endif // UTILS_H

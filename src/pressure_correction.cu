@@ -14,9 +14,9 @@ void make_incompressible(double* velocity_grid, double* divergence, double*press
     //print_matrix(n*m, n*m, laplace, n*m);
     size_t pressure_size = n*m;
     solveDense(laplace,divergence,pressure,pressure_size);
-    std::cout << "Pressure" << std::endl;
+    //std::cout << "Pressure" << std::endl;
     switchRowColMajor(pressure,n,m);
-    print_matrix_row_major(m, n, pressure, n);
+    //print_matrix_row_major(m, n, pressure, n);
     //free(laplace);
     //calculate gradient
     double dx = (PERIODIC_END - PERIODIC_START) / (n - 1);

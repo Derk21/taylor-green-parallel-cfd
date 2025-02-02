@@ -21,5 +21,10 @@
             "binaryPath": "/home/florian/projects/tailor-green-vortex/build/test_diffusion_debug",
             "binaryArgs": []
         },
+        {
+            "cwd": "/home/florian/projects/tailor-green-vortex",
+            "binaryPath": "/home/florian/projects/tailor-green-vortex/build/test_advection_debug",
+            "binaryArgs": []
+        },
     ]
 }

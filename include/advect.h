@@ -5,9 +5,11 @@
 #include "utils.h"
 #include <cmath>
 
-void interpolateVelocity(double x_d, double y_d, int n, int m, const double *periodic_grid, double *velocity_grid, double * velocity_grid_next);
+void interpolateVelocity(double x_d, double y_d, int n, int m, double periodic_start,double periodic_end, const double *periodic_grid, const double *velocity_grid, double * velocity_grid_next);
 
-void integrateEuler(double *velocity_grid, int &u_i, int &y_i, int &v_i, const double *periodic_grid, double &x_d,  double &y_d, const double dt, int n, int m);
+double get_interpolated(const int &i_closest, const int & y_i_closest,const double &x_diff, const double &y_diff,const double * velocity_grid,int n, int m);
+
+void integrateEuler(const double *velocity_grid, int &y_i, int &u_i, int &v_i, const double *periodic_grid, double &x_d,  double &y_d, const double dt, int n, int m);
 
 void advectSemiLagrange(double *velocity_grid, double *velocity_grid_next, const double *periodic_grid, const double dt, int n=NUM_N, int m=M);
 
