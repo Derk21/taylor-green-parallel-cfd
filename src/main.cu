@@ -59,7 +59,7 @@ int main()
         //plot_name << "velocity_"<< std::setw(4) << std::setfill('0') << i << "_diffused";
         //plotVelocityGrid(periodic_grid, velocity_grid, NUM_N, M, PERIODIC_START, PERIODIC_END,plot_name.str(), dirName);
         //plot_name.str("");
-        //advectSemiLagrange(velocity_grid,velocity_grid_next,periodic_grid,TIMESTEP);
+        advectSemiLagrange(velocity_grid,velocity_grid_next,periodic_grid,TIMESTEP);
         make_incompressible(velocity_grid,divergence,pressure);
         //taylorGreenGroundTruth(periodic_grid,velocity_grid_next,i,NUM_N,M);
         //std::swap(velocity_grid,velocity_grid_next);
@@ -69,15 +69,7 @@ int main()
     }
     std::cout << "Creating velocity animation" << std::endl;
     createGifFromPngs(dirName,"animation_velocity.gif",PERIODIC_START,PERIODIC_END);
-
-    //for (int y_i = 0; y_i < 5; ++y_i)
-    //{
-        //for (int x_i = 1; x_i < 10; x_i+=2)
-        //{
-            //std::cout << periodic_grid[y_i * (2*NUM_N) + x_i-1] << "," << periodic_grid[y_i * (2*NUM_N) + x_i] <<" ";
-        //}
-        //std::cout << std::endl;
-    //}
+    plotErrors("plots/_ground_truth",dirName);
 
     free(periodic_grid);
     free(velocity_grid);

@@ -103,7 +103,8 @@ void setPressureGroundTruth(double *pressure_grid,double * periodic_grid,int ite
     }
 }
 
-double get_max_diff(double* a, double* b, int n){
+double get_max_diff(double* a, double* b, int n)
+{
     //mean reduction
     double maximum = 0.0;
     for (int i = 0; i < n; i++)
@@ -113,6 +114,28 @@ double get_max_diff(double* a, double* b, int n){
     return maximum;
 }
 
-bool is_close(const double &a, const double &b, const double &tolerance) {
+bool is_close(const double &a, const double &b, const double &tolerance) 
+{
     return std::fabs(a - b) < tolerance;
 }
+
+double calculateRMSE(const std::vector<double>& reference, const std::vector<double>& simulation)
+{
+    double sum = 0.0;
+    size_t n = reference.size();
+    for (size_t i = 0; i < n; ++i) {
+        sum += std::pow(reference[i] - simulation[i],2);
+    }
+    return sum / n;
+}
+
+double calculateRelativeErr(const std::vector<double>& simulation, double rmse)
+{
+    double sum = 0.0;
+    size_t n = simulation.size();
+    for (size_t i = 0; i < n; ++i) {
+        sum += std::abs(simulation[i]);
+    }
+    double abs_mean = sum / n;
+    return rmse / abs_mean;
+} 

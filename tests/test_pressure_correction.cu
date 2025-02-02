@@ -1,7 +1,8 @@
 #include "pressure_correction.h"
 #include <cassert>
 
-void test_divergence(){
+void test_divergence()
+{
     int n = NUM_N;
     double *velocity_grid = (double *)malloc(n * n * 2 * sizeof(double));
     double *divergence = (double *)malloc(n * n * sizeof(double));
@@ -25,7 +26,8 @@ void test_divergence(){
     std::cout << "Divergence is correct" << std::endl;
 }
 
-void test_laplace(){ 
+void test_laplace()
+{ 
     int n = 4;
     double * lp = (double *)malloc(n*n*n*n * sizeof(double));
     if (lp == NULL)
@@ -50,7 +52,8 @@ void test_laplace(){
     free(lp);
 }
 
-int main() {
+int main()
+{
     test_divergence();
     test_laplace();
     std::cout << "All tests passed!" << std::endl;

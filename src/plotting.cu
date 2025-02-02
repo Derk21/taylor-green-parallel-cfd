@@ -122,3 +122,63 @@ void createGifFromPngs(const std::string& dirName, const std::string& outputGif,
     }
 }
 
+std::vector<double> readDataFile(const std::string& file_path) {
+    std::ifstream file(file_path);
+    std::vector<double> data;
+    double value;
+    while (file >> value) {
+        data.push_back(value);
+    }
+    return data;
+}
+
+void plotErrors(const std::string& reference, const std::string& simulation)
+{
+    std::vector<std::string> files;
+    for (const auto& entry : std::filesystem::directory_iterator(reference)) {
+        if (entry.path().extension() == ".dat") {
+            files.push_back(entry.path().filename().string());
+        }
+    }
+
+    std::vector<double> rmses;
+    std::vector<double> relative_errors;
+
+    for (const auto& file : files) {
+        std::string ref_file = reference + "/" + file;
+        std::string sim_file = simulation + "/" + file;
+
+        if (!std::filesystem::exists(sim_file)) {
+            std::cerr << "File " << sim_file << " does not exist." << std::endl;
+            continue;
+        }
+
+        std::vector<double> ref_velocity = readDataFile(ref_file);
+        std::vector<double> sim_velocity = readDataFile(sim_file);
+
+        double rmse = calculateRMSE(ref_velocity, sim_velocity);
+        double relative_error = calculateRelativeErr(sim_velocity, rmse);
+
+        rmses.push_back(rmse);
+        relative_errors.push_back(relative_error);
+    }
+
+    // Plot RMSE and relative error
+    Gnuplot gp;
+    gp << "set terminal png size 800,600\n";
+    gp << "set output '" << simulation << "/comparison.png'\n";
+    gp << "set multiplot layout 2,1 title 'Simulation error'\n";
+    gp << "set title 'RMSE'\n";
+    gp << "plot '-' with lines title 'RMSE'\n";
+    for (size_t i = 0; i < rmses.size(); ++i) {
+        gp << i << " " << rmses[i] << "\n";
+    }
+    gp << "e\n";
+    gp << "set title 'Relative Error'\n";
+    gp << "plot '-' with lines title 'Relative Error'\n";
+    for (size_t i = 0; i < relative_errors.size(); ++i) {
+        gp << i << " " << relative_errors[i] << "\n";
+    }
+    gp << "e\n";
+    gp << "unset multiplot\n";
+}
