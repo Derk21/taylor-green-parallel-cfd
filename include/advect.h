@@ -13,4 +13,10 @@ void integrateEuler(const double *velocity_grid, int &y_i, int &u_i, int &v_i, c
 
 void advectSemiLagrange(double *velocity_grid, double *velocity_grid_next, const double *periodic_grid, const double dt, int n=NUM_N, int m=M);
 
+void min_max_neighbors(double &min, double &max, const int idx,const int y_i, const double * velocity_grid,const int n, const int m);
+
+double mac_cormack_correction(const int idx_x,const int y_i,const double * velocity_grid, const double * velocity_grid_bw, const double* velocity_grid_fw, int n=NUM_N, int m=M);
+
+void advectMacCormack(double *velocity_grid, double *velocity_grid_next, const double *periodic_grid, const double dt, int n=NUM_N, int m=M);
+
 #endif // ADVECT_H

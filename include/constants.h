@@ -11,9 +11,11 @@
     #define PERIODIC_START 0.0
     #define PERIODIC_END 2 * M_PI
     #define DIFFUSIVITY 0.1
-    #define TIMESTEP  0.1 //0.5 
+    #define TIMESTEP  0.5 //0.5 
     //explicit diffusion
     #define SUBSTEPS_EXPLICIT 40 //40-80 are recommended
+    //advection
+    #define MACCORMACK_CORRECTION 1.0
 
 
 #endif // CONSTANTS_H

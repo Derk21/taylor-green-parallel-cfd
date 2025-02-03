@@ -119,6 +119,11 @@ bool is_close(const double &a, const double &b, const double &tolerance)
     return std::fabs(a - b) < tolerance;
 }
 
+void clip(double &v,const double min, const double max)
+{
+    v = std::max(min,std::min(v,max));
+}
+
 double calculateRMSE(const std::vector<double>& reference, const std::vector<double>& simulation)
 {
     double sum = 0.0;

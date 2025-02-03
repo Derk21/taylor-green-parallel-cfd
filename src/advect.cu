@@ -65,11 +65,77 @@ void advectSemiLagrange(double *velocity_grid, double *velocity_grid_next, const
             int u_i = i-1;
             int v_i = i;
             double x_d, y_d;
-            //backward euler -dt
+            //backward euler
             integrateEuler(velocity_grid,y_i, u_i,  v_i, periodic_grid, x_d, y_d,-dt);
-            //interpolate 
             interpolateVelocity(x_d, y_d, n, m,PERIODIC_START,PERIODIC_END, periodic_grid, velocity_grid,velocity_grid_next);
         }
     } 
     memcpy(velocity_grid, velocity_grid_next, 2 * n * m * sizeof(double));
+}
+
+void advectMacCormack(double *velocity_grid, double *velocity_grid_next, const double *periodic_grid, const double dt, int n, int m)
+{
+    double *velocity_grid_next_2 = (double *)malloc(n * m * 2 * sizeof(double));
+    memcpy(velocity_grid_next_2,velocity_grid, 2*n*m*sizeof(double));
+
+    int nn = 2 * n;
+    for (int y_i = 0; y_i < m; y_i++)
+    {
+        for (int i = 1; i < nn; i+=2)
+        {   
+            int u_i = i-1;
+            int v_i = i;
+            double x_backward_d, y_backward_d, x_forward_d, y_forward_d;
+            //backward euler -dt
+            integrateEuler(velocity_grid,y_i, u_i,  v_i, periodic_grid, x_backward_d, y_backward_d,-dt);
+            //forward euler +dt
+            integrateEuler(velocity_grid,y_i, u_i,  v_i, periodic_grid, x_forward_d, y_forward_d,dt);
+            //interpolate backward 
+            interpolateVelocity(x_backward_d, y_backward_d, n, m,PERIODIC_START,PERIODIC_END, periodic_grid, velocity_grid,velocity_grid_next);
+            //interpolate forward
+            interpolateVelocity(x_forward_d, y_forward_d, n, m,PERIODIC_START,PERIODIC_END, periodic_grid, velocity_grid,velocity_grid_next_2);
+
+            double u = mac_cormack_correction(u_i,y_i,velocity_grid,velocity_grid_next,velocity_grid_next_2,n,m);
+            velocity_grid_next[periodic_linear_Idx(u_i,y_i,2*n,m)] = u;
+
+            double v = mac_cormack_correction(v_i,y_i,velocity_grid,velocity_grid_next,velocity_grid_next_2,n,m);
+            velocity_grid_next[periodic_linear_Idx(v_i,y_i,2*n,m)] = v;
+        }
+    } 
+    memcpy(velocity_grid, velocity_grid_next, 2 * n * m * sizeof(double));
+    free(velocity_grid_next_2);
+}
+
+double mac_cormack_correction(const int idx_x,const int y_i,const double * velocity_grid, const double * velocity_grid_bw, const double* velocity_grid_fw,  int n, int m)
+{
+            double bw = velocity_grid_bw[periodic_linear_Idx(idx_x,y_i,2*n,m)];
+            double fw = velocity_grid_fw[periodic_linear_Idx(idx_x,y_i,2*n,m)];
+            double field = velocity_grid[periodic_linear_Idx(idx_x,y_i,2*n,m)];
+            //double out_val = 0.5 * (bw + fw); // temporal average
+            double out_val = fw + MACCORMACK_CORRECTION * 0.5 * (field - bw); //like in PHIflow, but clashes with wikipedia-definition
+            double min_,max_;
+            //clipping
+            min_max_neighbors(min_,max_,idx_x,y_i,velocity_grid,n,m);
+            clip(out_val,min_,max_);
+            return out_val;
+}
+
+void min_max_neighbors(double &min, double &max, const int idx,const int y_i, const double * velocity_grid,const int n, const int m)
+{
+    double neighbors[4];
+    neighbors[0] = velocity_grid[periodic_linear_Idx(idx-2,y_i,2*n,m)];
+    neighbors[1] = velocity_grid[periodic_linear_Idx(idx+2,y_i,2*n,m)];
+    neighbors[2] = velocity_grid[periodic_linear_Idx(idx,y_i-1,2*n,m)];
+    neighbors[3] = velocity_grid[periodic_linear_Idx(idx,y_i+1,2*n,m)];
+
+    min = neighbors[0];
+    max = neighbors[0];
+    for (int i = 1; i < 4; i++) {
+        if (neighbors[i] < min) {
+            min = neighbors[i];
+        }
+        if (neighbors[i] > max) {
+            max = neighbors[i];
+        }
+    }
 }
