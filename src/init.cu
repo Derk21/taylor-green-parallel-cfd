@@ -17,7 +17,7 @@ void initializePeriodicGrid(double *periodic_grid, int n, int m,const double per
 }
 
 
-void initilizeVelocityGrid(double *velocity_grid,double *periodic_grid,int n ,int m)
+void initializeVelocityGrid(double *velocity_grid, double *periodic_grid, int n, int m)
 {
     for (int y_i = 0; y_i < m; y_i++)
     {
@@ -32,7 +32,7 @@ void initilizeVelocityGrid(double *velocity_grid,double *periodic_grid,int n ,in
     }
 }
 
-void initilizePressure(double *pressure_grid, int n, int m)
+void initializePressure(double *pressure_grid, int n, int m)
 {
     for (int y_i = 0; y_i < m; y_i++)
     {

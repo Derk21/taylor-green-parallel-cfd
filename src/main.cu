@@ -44,21 +44,21 @@ int main()
         return EXIT_FAILURE;
     }
 
-    if (GPU){
-        double * d_periodic_grid,* d_velocity_grid, * d_velocity_grid_next, *d_laplacian_discrete;
-        CHECK_CUDA(cudaMalloc(&d_periodic_grid, NUM_N * M * 2 * sizeof(double)));
-        CHECK_CUDA(cudaMalloc(&d_velocity_grid, NUM_N * M * 2 * sizeof(double)));
-        CHECK_CUDA(cudaMalloc(&d_velocity_grid_next, NUM_N * M * 2 * sizeof(double)));
-        CHECK_CUDA(cudaMalloc(&d_laplacian_discrete, NUM_N * M * NUM_N * M * sizeof(double)));
+    //if (GPU){
+        //double * d_periodic_grid,* d_velocity_grid, * d_velocity_grid_next, *d_laplacian_discrete;
+        //CHECK_CUDA(cudaMalloc(&d_periodic_grid, NUM_N * M * 2 * sizeof(double)));
+        //CHECK_CUDA(cudaMalloc(&d_velocity_grid, NUM_N * M * 2 * sizeof(double)));
+        //CHECK_CUDA(cudaMalloc(&d_velocity_grid_next, NUM_N * M * 2 * sizeof(double)));
+        //CHECK_CUDA(cudaMalloc(&d_laplacian_discrete, NUM_N * M * NUM_N * M * sizeof(double)));
 
-        const int PADDED_SIZE = TILE_SIZE + 2; //might be better to do more depending on velocities
-        const int dx = (PERIODIC_END-PERIODIC_START) / (NUM_N - 1);
-        dim3 blockDim(TILE_SIZE);
-        dim3 gridDimLaplace((NUM_N*NUM_N + TILE_SIZE-1)/TILE_SIZE); 
-        gpu::fillLaplaceValues<<<gridDimLaplace,blockDim>>>(d_laplacian_discrete,NUM_N,dx);
+        //const int PADDED_SIZE = TILE_SIZE + 2; //might be better to do more depending on velocities
+        //const int dx = (PERIODIC_END-PERIODIC_START) / (NUM_N - 1);
+        //dim3 blockDim(TILE_SIZE);
+        //dim3 gridDimLaplace((NUM_N*NUM_N + TILE_SIZE-1)/TILE_SIZE); 
+        //gpu::fillLaplaceValues<<<gridDimLaplace,blockDim>>>(d_laplacian_discrete,NUM_N,dx);
 
         
-    }
+    //}
 
     
     //double *d_curr;
@@ -75,7 +75,7 @@ int main()
         diffuseExplicit(velocity_grid,velocity_grid_next);
         //advectSemiLagrange(velocity_grid,velocity_grid_next,periodic_grid,TIMESTEP);
         advectMacCormack(velocity_grid,velocity_grid_next,periodic_grid,TIMESTEP);
-        make_incompressible(velocity_grid,divergence,pressure);
+        makeIncompressible(velocity_grid,divergence,pressure);
 
         //taylorGreenGroundTruth(periodic_grid,velocity_grid_next,i,NUM_N,M);
         //std::swap(velocity_grid,velocity_grid_next);

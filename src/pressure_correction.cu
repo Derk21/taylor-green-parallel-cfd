@@ -1,6 +1,6 @@
 #include "pressure_correction.cuh"
 
-void make_incompressible(double* velocity_grid, double* divergence, double*pressure, int n, int m){
+void makeIncompressible(double* velocity_grid, double* divergence, double*pressure, int n, int m){
     calculateDivergence(velocity_grid,divergence);
     //cuBlas is column major
     //switchRowColMajor(divergence,m,n); //not needed, solver interprets this as 1D-vector anyways
@@ -55,15 +55,18 @@ void make_incompressible(double* velocity_grid, double* divergence, double*press
 namespace gpu 
 {
 
-void make_incompressible(double* velocity_grid, double* d_B, double* laplace, int n, int m)
+void makeIncompressible(double* velocity_grid, double* d_B, double* laplace, int n, int m)
 {
     /*d_B is used for divergence and pressure data*/
 
     dim3 blockDim(TILE_SIZE,TILE_SIZE);
-    dim3 gridDim((NUM_N + TILE_SIZE-1)/TILE_SIZE,(NUM_N + TILE_SIZE-1)/TILE_SIZE); 
-    gpu::calculateDivergence<<<gridDim,blockDim>>>(velocity_grid,d_B,n,m,DX);
+    dim3 gridDimDiv((NUM_N + TILE_SIZE-1)/TILE_SIZE,(NUM_N + TILE_SIZE-1)/TILE_SIZE); 
+    gpu::calculateDivergence<<<gridDimDiv,blockDim>>>(velocity_grid,d_B,n,m,DX);
     gpu::solveDense(laplace,d_B,n*m);
-    gpu::correct_velocity<<<gridDim,blockDim>>>(velocity_grid,d_B,n,m,DX);
+
+    //TODO: parallelize u and v correction? -> don't coalesce?
+    dim3 gridDimVel((NUM_N + TILE_SIZE-1)/TILE_SIZE,(NUM_N + TILE_SIZE-1)/TILE_SIZE); 
+    gpu::correct_velocity<<<gridDimVel,blockDim>>>(velocity_grid,d_B,n,m,DX);
 }
 
 __global__ void correct_velocity(double * velocity_grid,double * pressure,int n, int m, double dx)

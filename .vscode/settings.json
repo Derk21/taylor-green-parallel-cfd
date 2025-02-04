@@ -8,23 +8,48 @@
     "makefile.launchConfigurations": [
         {
             "cwd": "/home/florian/projects/tailor-green-vortex",
-            "binaryPath": "/home/florian/projects/tailor-green-vortex/build/main_debug",
+            "binaryPath": "/home/florian/projects/tailor-green-vortex/bin/main_debug",
             "binaryArgs": []
         },
         {
             "cwd": "/home/florian/projects/tailor-green-vortex",
-            "binaryPath": "/home/florian/projects/tailor-green-vortex/build/main",
+            "binaryPath": "/home/florian/projects/tailor-green-vortex/bin/main",
             "binaryArgs": []
         },
         {
             "cwd": "/home/florian/projects/tailor-green-vortex",
-            "binaryPath": "/home/florian/projects/tailor-green-vortex/build/test_diffusion_debug",
+            "binaryPath": "/home/florian/projects/tailor-green-vortex/bin/test_diffusion_debug",
             "binaryArgs": []
         },
         {
             "cwd": "/home/florian/projects/tailor-green-vortex",
-            "binaryPath": "/home/florian/projects/tailor-green-vortex/build/test_advection_debug",
+            "binaryPath": "/home/florian/projects/tailor-green-vortex/bin/test_advection_debug",
             "binaryArgs": []
         },
+        {
+            "cwd": "/home/florian/projects/tailor-green-vortex",
+            "binaryPath": "/home/florian/projects/tailor-green-vortex/bin/test_pressure_correction_debug",
+            "binaryArgs": []
+        },
+        {
+            "cwd": "/home/florian/projects/tailor-green-vortex/bin",
+            "binaryPath": "/home/florian/projects/tailor-green-vortex/bin/test_advection_debug",
+            "binaryArgs": []
+        },
+        {
+            "cwd": "/home/florian/projects/tailor-green-vortex/bin",
+            "binaryPath": "/home/florian/projects/tailor-green-vortex/bin/test_pressure_correction_debug",
+            "binaryArgs": []
+        },
+        {
+            "cwd": "/home/florian/projects/tailor-green-vortex/bin",
+            "binaryPath": "/home/florian/projects/tailor-green-vortex/bin/test_pressure_correction",
+            "binaryArgs": []
+        },
+        {
+            "cwd": "/home/florian/projects/tailor-green-vortex/bin",
+            "binaryPath": "/home/florian/projects/tailor-green-vortex/bin/test_pressure_correction_debug",
+            "binaryArgs": []
+        }
     ]
 }

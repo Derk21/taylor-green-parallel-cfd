@@ -35,8 +35,46 @@ void test_divergence()
     assert(all_close(h_div,divergence,n,n));
     std::cout << "CPU Divergence is identical to GPU divergence" << std::endl;
 
+    CHECK_CUDA(cudaFree(d_div));
+    CHECK_CUDA(cudaFree(d_vel));
     free(velocity_grid);
     free(divergence);
+}
+
+void test_make_incompressible()
+{
+    int n = 5;
+    int dx = 1.0;
+    double *velocity_grid = (double *)malloc(n * n * 2 * sizeof(double));
+    double *divergence = (double *)malloc(n * n * sizeof(double));
+    for (int y_i = 0; y_i < n; y_i++)
+    {
+        for (int i = 1; i < 2*n; i+=2)
+        {
+            velocity_grid[y_i * (2*n) + i - 1] = 1.0; //u component 
+            velocity_grid[y_i * (2*n) + i] = 1.0;
+        }
+    }
+
+    for (int y_i = 0; y_i < n; y_i++)
+    {
+        for (int i = 0; i < n; i++)
+        {
+            divergence[y_i * n + i] = 0.0;
+        }
+    }
+
+    velocity_grid[2 * (2*n) + 2 - 1] = -1.0; //u component 
+    velocity_grid[2 * (2*n) + 2] = -1.0;
+
+    calculateDivergence(velocity_grid,divergence,n,n);
+    std::cout << "divergence" << std::endl;
+    print_matrix_row_major(n,n,divergence,n);
+    
+
+    free(velocity_grid);
+    free(divergence);
+
 }
 
 void test_laplace()
@@ -84,10 +122,12 @@ void test_laplace()
 
 
 
+
 int main()
 {
     test_divergence();
     test_laplace();
+    test_make_incompressible();
     std::cout << "All tests passed!" << std::endl;
     return 0;
 }

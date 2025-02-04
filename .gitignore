@@ -4,3 +4,9 @@ main_debug
 plots/*
 build/*
 .vscode/*
+CMakeFiles
+*.cmake
+**/**/Makefile
+Makefile
+bin/*
+CMakeCache.txt
