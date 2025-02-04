@@ -3,7 +3,7 @@
 void make_incompressible(double* velocity_grid, double* divergence, double*pressure, int n, int m){
     calculateDivergence(velocity_grid,divergence);
     //cuBlas is column major
-    switchRowColMajor(divergence,m,n);
+    //switchRowColMajor(divergence,m,n); //not needed, solver interprets this as 1D-vector anyways
 
     double *laplace = (double *)malloc(n * m * n * m * sizeof(double));
     //std::cout << "Divergence" << std::endl;
@@ -15,7 +15,7 @@ void make_incompressible(double* velocity_grid, double* divergence, double*press
     size_t pressure_size = n*m;
     solveDense(laplace,divergence,pressure,pressure_size);
     //std::cout << "Pressure" << std::endl;
-    switchRowColMajor(pressure,n,m);
+    //switchRowColMajor(pressure,n,m);
     //print_matrix_row_major(m, n, pressure, n);
     //free(laplace);
     //calculate gradient
