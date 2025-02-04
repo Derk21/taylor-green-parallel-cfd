@@ -6,9 +6,11 @@
 #include "utils.cuh"
 #include "solve.cuh"
 
-void makeIncompressible(double* velocity_grid, double* divergence, double* pressure, int n = NUM_N, int m = M);
+void makeIncompressible(double* velocity_grid, double* divergence, double* pressure, int n = NUM_N, int m = M, const double dx = DX);
 
-void calculateDivergence(const double* velocity_grid, double* divergence, int n = NUM_N, int m = M);
+void correct_velocity(double * velocity_grid,double * pressure,int n, int m, double dx);
+
+void calculateDivergence(const double* velocity_grid, double* divergence, int n = NUM_N, int m = M,const double dx = DX);
 
 void constructDiscretizedLaplacian(double* laplace_discrete, int n = NUM_N, const double dx = DX);
 

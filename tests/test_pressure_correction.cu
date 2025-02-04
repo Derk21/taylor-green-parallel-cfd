@@ -43,10 +43,11 @@ void test_divergence()
 
 void test_make_incompressible()
 {
-    int n = 5;
+    int n = 64;
     int dx = 1.0;
     double *velocity_grid = (double *)malloc(n * n * 2 * sizeof(double));
     double *divergence = (double *)malloc(n * n * sizeof(double));
+    double *pressure = (double *)malloc(n * n * sizeof(double));
     for (int y_i = 0; y_i < n; y_i++)
     {
         for (int i = 1; i < 2*n; i+=2)
@@ -55,26 +56,110 @@ void test_make_incompressible()
             velocity_grid[y_i * (2*n) + i] = 1.0;
         }
     }
+    double testval = velocity_grid[periodic_linear_Idx(-2,0,2*n,n)];
 
+    std::cout << "test_val" << testval << std::endl;
     for (int y_i = 0; y_i < n; y_i++)
     {
         for (int i = 0; i < n; i++)
         {
             divergence[y_i * n + i] = 0.0;
+            pressure[y_i * n + i] = 0.0;
         }
     }
 
     velocity_grid[2 * (2*n) + 2 - 1] = -1.0; //u component 
     velocity_grid[2 * (2*n) + 2] = -1.0;
 
-    calculateDivergence(velocity_grid,divergence,n,n);
-    std::cout << "divergence" << std::endl;
-    print_matrix_row_major(n,n,divergence,n);
-    
+    std::cout << "velocity" << std::endl;
+    print_matrix_row_major(n,2*n,velocity_grid,2*n);
 
+    double *d_div, *d_vel, *d_lp;
+    double *h_vel= (double*) malloc(n*n * 2 * sizeof(double));
+    CHECK_CUDA(cudaMalloc(&d_div, n*n* sizeof(double)));
+    CHECK_CUDA(cudaMalloc(&d_vel, n*n*2* sizeof(double)));
+    CHECK_CUDA(cudaMalloc(&d_lp, n*n*n*n * sizeof(double)));
+
+    CHECK_CUDA(cudaMemcpy(d_vel, velocity_grid,n*n*2* sizeof(double) , cudaMemcpyHostToDevice));
+
+    //CHECK_CUDA(cudaMemcpy(h_vel, d_vel,n*n*2* sizeof(double) , cudaMemcpyDeviceToHost));
+    //double * lp = (double *)malloc(n*n*n*n * sizeof(double));
+    //if (lp == NULL)
+    //{
+        //std::cerr << "Memory allocation failed!" << std::endl;
+        //exit(EXIT_FAILURE);
+    //}
+    //constructDiscretizedLaplacian(lp,n,dx);
+
+    //CHECK_CUDA(cudaMemcpy(d_lp, lp,n*n*n*n* sizeof(double) , cudaMemcpyHostToDevice));
+    gpu::constructDiscretizedLaplacian(d_lp,n,dx);
+    //calculateDivergence(velocity_grid,divergence,n,n,dx);
+    //std::cout << "divergence" << std::endl;
+    //print_matrix_row_major(n,n,divergence,n);
+
+    makeIncompressible(velocity_grid,divergence,pressure,n,n,dx);
+    std::cout << "velocity after correction" << std::endl;
+    //print_matrix_row_major(n,2*n,velocity_grid,2*n);
+
+    //GPU
+    //gpu test
+    gpu::makeIncompressible(d_vel,d_div,d_lp,n,n);
+    CHECK_CUDA(cudaMemcpy(h_vel, d_vel,n*n*2* sizeof(double) , cudaMemcpyDeviceToHost));
+    assert(all_close(h_vel,velocity_grid,2*n,n));
+    std::cout << "CPU corrected velocity is identical to GPU corrected velocity" << std::endl;
+
+    CHECK_CUDA(cudaFree(d_div));
+    CHECK_CUDA(cudaFree(d_vel));
+    CHECK_CUDA(cudaFree(d_lp));
     free(velocity_grid);
     free(divergence);
+    free(pressure);
+    free(h_vel);
 
+}
+
+void test_correct_velocity()
+{
+
+    int n = 2;
+    double dx = 1.0;
+
+    double velocity_grid_gpu[8] = {1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0}; 
+    double velocity_grid_cpu[8] = {1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0}; 
+    double velocity_grid_correct[8] = {0.0, -1.0, 2.0, -1.0, 0.0, 3.0, 2.0, 3.0}; 
+    double pressure[4] = {1.0, 2.0, 3.0, 4.0}; 
+
+    std::cout << "corrected velocity cpu"<<std::endl;
+    correct_velocity(velocity_grid_cpu,pressure,n,n,dx);
+    print_matrix_row_major(n,2*n,velocity_grid_cpu,2*n);
+    assert(all_close(velocity_grid_cpu,velocity_grid_correct,2*n,n));
+    // Allocate device memory
+    double *d_velocity_grid, *d_pressure;
+    CHECK_CUDA(cudaMalloc(&d_velocity_grid, n*n* 2* sizeof(double)));
+    CHECK_CUDA(cudaMalloc(&d_pressure, n*n * sizeof(double)));
+
+    // Copy data to device
+    CHECK_CUDA(cudaMemcpy(d_velocity_grid, velocity_grid_gpu, n*n*2 * sizeof(double), cudaMemcpyHostToDevice));
+    CHECK_CUDA(cudaMemcpy(d_pressure, pressure, n*n * sizeof(double), cudaMemcpyHostToDevice));
+
+    // Launch the kernel
+    dim3 blockDim(16, 16);
+    dim3 gridDim(1, 1);
+    gpu::correct_velocity<<<gridDim, blockDim>>>(d_velocity_grid, d_pressure, n, n, dx);
+    CHECK_CUDA(cudaDeviceSynchronize());
+
+    // Copy results back to host
+    CHECK_CUDA(cudaMemcpy(velocity_grid_gpu, d_velocity_grid, 8 * sizeof(double), cudaMemcpyDeviceToHost));
+
+    // Verify the results
+    std::cout<< "corrected velocity gpu: " << std::endl;
+    print_matrix_row_major(n,2*n,velocity_grid_gpu,2*n);
+    assert(all_close(velocity_grid_gpu,velocity_grid_correct,2*n,n));
+    std::cout << "velocity correction test passed!" << std::endl;
+
+    // Free memory
+    CHECK_CUDA(cudaFree(d_velocity_grid));
+    CHECK_CUDA(cudaFree(d_pressure));
 }
 
 void test_laplace()
@@ -127,7 +212,8 @@ int main()
 {
     test_divergence();
     test_laplace();
-    test_make_incompressible();
+    test_correct_velocity();
+    //test_make_incompressible();
     std::cout << "All tests passed!" << std::endl;
     return 0;
 }

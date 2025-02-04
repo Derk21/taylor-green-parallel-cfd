@@ -1,6 +1,6 @@
 #include "pressure_correction.cuh"
 
-void makeIncompressible(double* velocity_grid, double* divergence, double*pressure, int n, int m){
+void makeIncompressible(double* velocity_grid, double* divergence, double*pressure, int n, int m, const double dx){
     calculateDivergence(velocity_grid,divergence);
     //cuBlas is column major
     //switchRowColMajor(divergence,m,n); //not needed, solver interprets this as 1D-vector anyways
@@ -19,20 +19,53 @@ void makeIncompressible(double* velocity_grid, double* divergence, double*pressu
     //print_matrix_row_major(m, n, pressure, n);
     //free(laplace);
     //calculate gradient
-    double dx = (PERIODIC_END - PERIODIC_START) / (n - 1);
-    double dy = (PERIODIC_END - PERIODIC_START) / (m - 1);
+    //double dx = (PERIODIC_END - PERIODIC_START) / (n - 1);
+    //double dy = (PERIODIC_END - PERIODIC_START) / (m - 1);
+    correct_velocity(velocity_grid,pressure,n,m,dx);
+    //for (int y_i = 0; y_i < m; y_i++)
+    //{
+        //for (int i = 1; i < n; i++)
+        //{   
+            //int u_i = 2 * (i - 1);
+            //int v_i = 2 * i;
+            ////TODO: check which finite difference to use
+            //double p = pressure[periodic_linear_Idx(i,y_i,n,m)];
+            //double p_right = pressure[periodic_linear_Idx(i+1,y_i,n,m)];
+            //double p_down = pressure[periodic_linear_Idx(i,y_i+1,n,m)];
+            //double p_dx = (p_right - p) / dx;
+            //double p_dy = (p_down - p) / dx;
+
+            ////central differences
+            ////double p = pressure[periodic_linear_Idx(i,y_i,n,m)];
+            ////double p_left = pressure[periodic_linear_Idx(i-1,y_i,n,m)];
+            ////double p_right = pressure[periodic_linear_Idx(i+1,y_i,n,m)];
+            ////double p_up = pressure[periodic_linear_Idx(i,y_i-1,n,m)];
+            ////double p_down = pressure[periodic_linear_Idx(i,y_i+1,n,m)];
+            ////double p_dx = (p_right - p_left) / dx;
+            ////double p_dy = (p_down - p_up) / dy;
+
+            ////TODO:scale somehow with dt?
+            //velocity_grid[periodic_linear_Idx(u_i,y_i,2*n,m)] -= p_dx;
+            //velocity_grid[periodic_linear_Idx(v_i,y_i,2*n,m)] -= p_dy;
+            ////velocity_grid[periodic_linear_Idx(u_i,y_i)] += p_dx;
+            ////velocity_grid[periodic_linear_Idx(v_i,y_i)] += p_dy;
+        //}
+    //}
+}
+void correct_velocity(double * velocity_grid,double * pressure,int n, int m, double dx)
+{
     for (int y_i = 0; y_i < m; y_i++)
     {
-        for (int i = 1; i < n; i++)
+        for (int i = 0; i < n; i++)
         {   
-            int u_i = 2 * (i - 1);
-            int v_i = 2 * i;
+            int u_i = 2 * i;
+            int v_i = 2 * i + 1;
             //TODO: check which finite difference to use
             double p = pressure[periodic_linear_Idx(i,y_i,n,m)];
             double p_right = pressure[periodic_linear_Idx(i+1,y_i,n,m)];
             double p_down = pressure[periodic_linear_Idx(i,y_i+1,n,m)];
             double p_dx = (p_right - p) / dx;
-            double p_dy = (p_down - p) / dy;
+            double p_dy = (p_down - p) / dx;
 
             //central differences
             //double p = pressure[periodic_linear_Idx(i,y_i,n,m)];
@@ -44,8 +77,8 @@ void makeIncompressible(double* velocity_grid, double* divergence, double*pressu
             //double p_dy = (p_down - p_up) / dy;
 
             //TODO:scale somehow with dt?
-            velocity_grid[periodic_linear_Idx(u_i,y_i)] -= p_dx;
-            velocity_grid[periodic_linear_Idx(v_i,y_i)] -= p_dy;
+            velocity_grid[periodic_linear_Idx(u_i,y_i,2*n,m)] -= p_dx;
+            velocity_grid[periodic_linear_Idx(v_i,y_i,2*n,m)] -= p_dy;
             //velocity_grid[periodic_linear_Idx(u_i,y_i)] += p_dx;
             //velocity_grid[periodic_linear_Idx(v_i,y_i)] += p_dy;
         }
@@ -62,11 +95,12 @@ void makeIncompressible(double* velocity_grid, double* d_B, double* laplace, int
     dim3 blockDim(TILE_SIZE,TILE_SIZE);
     dim3 gridDimDiv((NUM_N + TILE_SIZE-1)/TILE_SIZE,(NUM_N + TILE_SIZE-1)/TILE_SIZE); 
     gpu::calculateDivergence<<<gridDimDiv,blockDim>>>(velocity_grid,d_B,n,m,DX);
-    gpu::solveDense(laplace,d_B,n*m);
+    CHECK_CUDA(cudaDeviceSynchronize());
+    //gpu::solveDense(laplace,d_B,n*m);
 
     //TODO: parallelize u and v correction? -> don't coalesce?
-    dim3 gridDimVel((NUM_N + TILE_SIZE-1)/TILE_SIZE,(NUM_N + TILE_SIZE-1)/TILE_SIZE); 
-    gpu::correct_velocity<<<gridDimVel,blockDim>>>(velocity_grid,d_B,n,m,DX);
+    //dim3 gridDimVel((NUM_N + TILE_SIZE-1)/TILE_SIZE,(NUM_N + TILE_SIZE-1)/TILE_SIZE); 
+    //gpu::correct_velocity<<<gridDimVel,blockDim>>>(velocity_grid,d_B,n,m,DX);
 }
 
 __global__ void correct_velocity(double * velocity_grid,double * pressure,int n, int m, double dx)
@@ -83,35 +117,35 @@ __global__ void correct_velocity(double * velocity_grid,double * pressure,int n,
             double p_dx = (p_right - p) / dx;
             double p_dy = (p_down - p) / dx;
 
-            velocity_grid[periodic_linear_Idx(u_i,row)] -= p_dx;
-            velocity_grid[periodic_linear_Idx(v_i,row)] -= p_dy;
+            velocity_grid[periodic_linear_Idx(u_i,row,2*n,m)] -= p_dx;
+            velocity_grid[periodic_linear_Idx(v_i,row,2*n,m)] -= p_dy;
     }
 }
 }
 
 
-void calculateDivergence(const double* velocity_grid,double*divergence,int n, int m){
+void calculateDivergence(const double* velocity_grid,double*divergence,int n, int m, const double dx){
 
     //divergence by central differences
-    double dx = (PERIODIC_END - PERIODIC_START) / (n - 1);
-    double dy = (PERIODIC_END - PERIODIC_START) / (m - 1);
+    //double dx = (PERIODIC_END - PERIODIC_START) / (n - 1);
+    //double dy = (PERIODIC_END - PERIODIC_START) / (m - 1);
     for (int y_i = 0; y_i < m; y_i++)
     {
         for (int i = 0; i < n; i++)
         {   
             int u_i = 2 * i;
             int v_i = 2 * i + 1;
-            double u = velocity_grid[periodic_linear_Idx(u_i,y_i)];
-            double v = velocity_grid[periodic_linear_Idx(v_i,y_i)];
+            double u = velocity_grid[periodic_linear_Idx(u_i,y_i,2*n,m)];
+            double v = velocity_grid[periodic_linear_Idx(v_i,y_i,2*n,m)];
 
-            double u_left = velocity_grid[periodic_linear_Idx(u_i - 2,y_i)];
-            double u_right = velocity_grid[periodic_linear_Idx(u_i + 2,y_i)];
+            double u_left = velocity_grid[periodic_linear_Idx(u_i - 2,y_i,2*n,m)];
+            double u_right = velocity_grid[periodic_linear_Idx(u_i + 2,y_i,2*n,m)];
 
-            double v_down= velocity_grid[periodic_linear_Idx(v_i,y_i+1)];
-            double v_up= velocity_grid[periodic_linear_Idx(v_i,y_i-1)];
+            double v_down= velocity_grid[periodic_linear_Idx(v_i,y_i+1,2*n,m)];
+            double v_up= velocity_grid[periodic_linear_Idx(v_i,y_i-1,2*n,m)];
             //central differences
             //double div = (u_right - u_left) / (2 * dx) + (v_up - v_down) / (2 * dy);
-            double div = (u_right - u_left) / (2 * dx) + (v_down - v_up) / (2 * dy);
+            double div = (u_right - u_left) / (2 * dx) + (v_down - v_up) / (2 * dx);
             //backward differences
             //double div = (u - u_left) / dx + (v - v_down) / dy;
             divergence[periodic_linear_Idx(i,y_i,n,m)] = div;
@@ -131,14 +165,14 @@ __global__ void calculateDivergence(const double* velocity_grid,double*divergenc
     {
         int u_i = 2 * col;
         int v_i = 2 * col + 1;
-        double u = velocity_grid[periodic_linear_Idx(u_i,row)];
-        double v = velocity_grid[periodic_linear_Idx(v_i,row)];
+        double u = velocity_grid[periodic_linear_Idx(u_i,row,2*n,m)];
+        double v = velocity_grid[periodic_linear_Idx(v_i,row,2*n,m)];
 
-        double u_left = velocity_grid[periodic_linear_Idx(u_i - 2,row)];
-        double u_right = velocity_grid[periodic_linear_Idx(u_i + 2,row)];
+        double u_left = velocity_grid[periodic_linear_Idx(u_i - 2,row,2*n,m)];
+        double u_right = velocity_grid[periodic_linear_Idx(u_i + 2,row,2*n,m)];
 
-        double v_down= velocity_grid[periodic_linear_Idx(v_i,row+1)];
-        double v_up= velocity_grid[periodic_linear_Idx(v_i,row-1)];
+        double v_down= velocity_grid[periodic_linear_Idx(v_i,row+1,2*n,m)];
+        double v_up= velocity_grid[periodic_linear_Idx(v_i,row-1,2*n,m)];
         //central differences
         //double div = (u_right - u_left) / (2 * dx) + (v_up - v_down) / (2 * dy);
         double div = (u_right - u_left) / (2 * dx) + (v_down - v_up) / (2 * dx);
