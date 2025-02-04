@@ -173,14 +173,18 @@ void constructDiscretizedLaplacian(double* laplace_discrete,int n, const double 
 }
 
 namespace gpu {
-__global__  void constructDiscretizedLaplacian(double* laplace_discrete, int n, const double dx)
+__global__  void fillLaplaceValues(double* laplace_discrete, int n, const double dx)
 {
+    /*CAUTION: expects 0 inititilized laplace_discrete*/
     int lp_idx = threadIdx.x + blockIdx.x * blockDim.x; 
-    if (lp_idx < n*n)
-        laplace_discrete[lp_idx*2] = 0.0;
-        laplace_discrete[lp_idx*1] = 0.0;
-    
-    __syncthreads();
+
+    //if (lp_idx < n*n)
+        //for (int i= 0; i< n*n*n*n; i++){
+            //laplace_discrete[lp_idx * n*n + i] =0.0;
+        //}
+        //laplace_discrete[lp_idx*2] = 0.0;
+        //laplace_discrete[lp_idx*1] = 0.0;
+    //__syncthreads();
     if (lp_idx < n*n)
     {
         //one lp_row has one entry for all entries in source martrix
@@ -200,6 +204,14 @@ __global__  void constructDiscretizedLaplacian(double* laplace_discrete, int n, 
         laplace_discrete[lp_idx * n * n + left_src] = neighbor_weight;
         laplace_discrete[lp_idx * n * n + right_src] = neighbor_weight;
     }
+}
+
+void constructDiscretizedLaplacian(double* laplace_discrete,int n, const double dx)
+{
+    CHECK_CUDA(cudaMemset(laplace_discrete,0,n*n*n*n*sizeof(double)))
+    dim3 blockDim(TILE_SIZE);
+    dim3 gridDim((n*n + TILE_SIZE -1)/TILE_SIZE);
+    gpu::fillLaplaceValues<<<gridDim,blockDim>>>(laplace_discrete,n,dx);
 }
 
 }

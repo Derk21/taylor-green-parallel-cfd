@@ -49,17 +49,16 @@ void test_laplace()
     }
     std::cout << "Laplacian has correct row sums" << std::endl;
     std::cout << "Laplacian" << std::endl;
-    print_matrix(n*n, n*n, lp, n*n);
+    print_matrix_row_major(n*n, n*n, lp, n*n);
 
     //gpu
     double * d_lp;
     double *h_lp = (double*) malloc(n*n*n*n * sizeof(double));
     CHECK_CUDA(cudaMalloc(&d_lp, n*n*n*n * sizeof(double)));
-    dim3 blockDim(4);
-    dim3 gridDim((n*n + 4 -1) / 4);
-    gpu::constructDiscretizedLaplacian<<<gridDim,blockDim>>>(d_lp,n*n,dx);
+    gpu::constructDiscretizedLaplacian(d_lp,n,dx);
     CHECK_CUDA(cudaMemcpy(h_lp, d_lp,n*n*n*n * sizeof(double) , cudaMemcpyDeviceToHost));
-
+    std::cout << "gpu laplacian:" << std::endl;
+    print_matrix_row_major(n*n,n*n,h_lp,n*n);
     for (int i = 0; i < n*n; i++)
     {
         for (int j = 0; j < n*n; j++)
@@ -67,6 +66,7 @@ void test_laplace()
             assert(is_close(lp[i*n*n+j],h_lp[i*n*n+j]));
         }
     }
+    
 
     CHECK_CUDA(cudaFree(d_lp));
     std::cout << "GPU Laplacian is identical to CPU Laplacian" << std::endl;

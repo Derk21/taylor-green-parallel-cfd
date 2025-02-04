@@ -55,7 +55,7 @@ int main()
         const int dx = (PERIODIC_END-PERIODIC_START) / (NUM_N - 1);
         dim3 blockDim(TILE_SIZE);
         dim3 gridDimLaplace((NUM_N*NUM_N + TILE_SIZE-1)/TILE_SIZE); 
-        gpu::constructDiscretizedLaplacian<<<gridDimLaplace,blockDim>>>(d_laplacian_discrete,NUM_N,dx);
+        gpu::fillLaplaceValues<<<gridDimLaplace,blockDim>>>(d_laplacian_discrete,NUM_N,dx);
 
         
     }

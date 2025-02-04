@@ -12,7 +12,7 @@ LIBS = -L$(CUDA_HOME)/lib64 -lcudart -lcuda -lboost_iostreams -lboost_system -lb
 
 # Flags for compiling
 NVCC_FLAGS = -dc -lineinfo -Xcompiler "$(CXXFLAGS)"
-DEBUG_FLAGS = -dc -g -G -O0 -Xcompiler -std=c++17
+DEBUG_FLAGS = -g -G -O0 -Xcompiler -std=c++17
 
 # Source and build directories
 SRC_DIR = src

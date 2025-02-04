@@ -4,7 +4,7 @@ void print_matrix_row_major(const int &m, const int &n, const double *A, const i
     //adapted from https://github.com/NVIDIA/CUDALibrarySamples/blob/master/cuSOLVER/utils/cusolver_utils.h
     for (int j = 0; j < m; j++) {
         for (int i = 0; i < n; i++) {
-            std::printf("%0.8f ", A[j * lda + i]);
+            std::printf("%0.2f ", A[j * lda + i]);
         }
         std::printf("\n");
     }
