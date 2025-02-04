@@ -1,7 +1,7 @@
 #include "pressure_correction.cuh"
 
 void makeIncompressible(double* velocity_grid, double* divergence, double*pressure, int n, int m, const double dx){
-    calculateDivergence(velocity_grid,divergence);
+    calculateDivergence(velocity_grid,divergence,n,n,dx);
     //cuBlas is column major
     //switchRowColMajor(divergence,m,n); //not needed, solver interprets this as 1D-vector anyways
 
@@ -9,7 +9,7 @@ void makeIncompressible(double* velocity_grid, double* divergence, double*pressu
     //std::cout << "Divergence" << std::endl;
     //print_matrix(m, n, divergence, n);
     //std::cout << "Laplacian" << std::endl;
-    constructDiscretizedLaplacian(laplace); // LP^T = LP -> no need to transpose
+    constructDiscretizedLaplacian(laplace,n,dx); // LP^T = LP -> no need to transpose
 
     //print_matrix(n*m, n*m, laplace, n*m);
     size_t pressure_size = n*m;
@@ -17,40 +17,8 @@ void makeIncompressible(double* velocity_grid, double* divergence, double*pressu
     //std::cout << "Pressure" << std::endl;
     //switchRowColMajor(pressure,n,m);
     //print_matrix_row_major(m, n, pressure, n);
-    //free(laplace);
-    //calculate gradient
-    //double dx = (PERIODIC_END - PERIODIC_START) / (n - 1);
-    //double dy = (PERIODIC_END - PERIODIC_START) / (m - 1);
+    free(laplace);
     correct_velocity(velocity_grid,pressure,n,m,dx);
-    //for (int y_i = 0; y_i < m; y_i++)
-    //{
-        //for (int i = 1; i < n; i++)
-        //{   
-            //int u_i = 2 * (i - 1);
-            //int v_i = 2 * i;
-            ////TODO: check which finite difference to use
-            //double p = pressure[periodic_linear_Idx(i,y_i,n,m)];
-            //double p_right = pressure[periodic_linear_Idx(i+1,y_i,n,m)];
-            //double p_down = pressure[periodic_linear_Idx(i,y_i+1,n,m)];
-            //double p_dx = (p_right - p) / dx;
-            //double p_dy = (p_down - p) / dx;
-
-            ////central differences
-            ////double p = pressure[periodic_linear_Idx(i,y_i,n,m)];
-            ////double p_left = pressure[periodic_linear_Idx(i-1,y_i,n,m)];
-            ////double p_right = pressure[periodic_linear_Idx(i+1,y_i,n,m)];
-            ////double p_up = pressure[periodic_linear_Idx(i,y_i-1,n,m)];
-            ////double p_down = pressure[periodic_linear_Idx(i,y_i+1,n,m)];
-            ////double p_dx = (p_right - p_left) / dx;
-            ////double p_dy = (p_down - p_up) / dy;
-
-            ////TODO:scale somehow with dt?
-            //velocity_grid[periodic_linear_Idx(u_i,y_i,2*n,m)] -= p_dx;
-            //velocity_grid[periodic_linear_Idx(v_i,y_i,2*n,m)] -= p_dy;
-            ////velocity_grid[periodic_linear_Idx(u_i,y_i)] += p_dx;
-            ////velocity_grid[periodic_linear_Idx(v_i,y_i)] += p_dy;
-        //}
-    //}
 }
 void correct_velocity(double * velocity_grid,double * pressure,int n, int m, double dx)
 {
@@ -93,14 +61,14 @@ void makeIncompressible(double* velocity_grid, double* d_B, double* laplace, int
     /*d_B is used for divergence and pressure data*/
 
     dim3 blockDim(TILE_SIZE,TILE_SIZE);
-    dim3 gridDimDiv((NUM_N + TILE_SIZE-1)/TILE_SIZE,(NUM_N + TILE_SIZE-1)/TILE_SIZE); 
+    dim3 gridDimDiv((n + TILE_SIZE-1)/TILE_SIZE,(+ TILE_SIZE-1)/TILE_SIZE); 
     gpu::calculateDivergence<<<gridDimDiv,blockDim>>>(velocity_grid,d_B,n,m,DX);
     CHECK_CUDA(cudaDeviceSynchronize());
-    //gpu::solveDense(laplace,d_B,n*m);
+    gpu::solveDense(laplace,d_B,n*m);
 
     //TODO: parallelize u and v correction? -> don't coalesce?
-    //dim3 gridDimVel((NUM_N + TILE_SIZE-1)/TILE_SIZE,(NUM_N + TILE_SIZE-1)/TILE_SIZE); 
-    //gpu::correct_velocity<<<gridDimVel,blockDim>>>(velocity_grid,d_B,n,m,DX);
+    dim3 gridDimVel((NUM_N + TILE_SIZE-1)/TILE_SIZE,(NUM_N + TILE_SIZE-1)/TILE_SIZE); 
+    gpu::correct_velocity<<<gridDimVel,blockDim>>>(velocity_grid,d_B,n,m,DX);
 }
 
 __global__ void correct_velocity(double * velocity_grid,double * pressure,int n, int m, double dx)
@@ -245,7 +213,7 @@ __global__  void fillLaplaceValues(double* laplace_discrete, int n, const double
 
 void constructDiscretizedLaplacian(double* laplace_discrete,int n, const double dx)
 {
-    CHECK_CUDA(cudaMemset(laplace_discrete,0,n*n*n*n*sizeof(double)))
+    CHECK_CUDA(cudaMemset(laplace_discrete,0,n*n*n*n *sizeof(double)));
     dim3 blockDim(TILE_SIZE);
     dim3 gridDim((n*n + TILE_SIZE -1)/TILE_SIZE);
     gpu::fillLaplaceValues<<<gridDim,blockDim>>>(laplace_discrete,n,dx);
