@@ -1,8 +1,8 @@
-#include "constants.h"
-#include "diffuse.h"
-//#include "plotting.h"
-#include "utils.h"
-#include "init.h"
+#include "constants.cuh"
+#include "diffuse.cuh"
+//#include "plotting.cuh"
+#include "utils.cuh"
+#include "init.cuh"
 #include <string>
 #include <iostream>
 

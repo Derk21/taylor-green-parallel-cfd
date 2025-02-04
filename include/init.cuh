@@ -2,8 +2,8 @@
 #ifndef INIT_H
 #define INIT_H
 
-#include "constants.h"
-#include "utils.h"
+#include "constants.cuh"
+#include "utils.cuh"
 
 void initializePeriodicGrid(double *periodic_grid, int n, int m,const double periodic_start=PERIODIC_START,const double periodic_end=PERIODIC_END);
 

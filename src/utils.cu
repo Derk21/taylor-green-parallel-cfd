@@ -1,4 +1,4 @@
-#include "utils.h"
+#include "utils.cuh"
 
 void print_matrix_row_major(const int &m, const int &n, const double *A, const int &lda) {
     //adapted from https://github.com/NVIDIA/CUDALibrarySamples/blob/master/cuSOLVER/utils/cusolver_utils.h
@@ -33,7 +33,8 @@ void switchRowColMajor(double *A, const int &m, const int &n)
     free(temp);
 }
 
-int periodic_linear_Idx(const int &x, const int &y, const int bound_x ,const int bound_y )
+__host__ __device__ 
+int periodic_linear_Idx(const int &x, const int &y, const int bound_x , const int bound_y )
 {   
     int mod_x = (x + bound_x) % bound_x; // ensures non-negative result
     int mod_y = (y + bound_y) % bound_y;

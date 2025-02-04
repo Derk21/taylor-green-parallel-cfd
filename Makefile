@@ -11,8 +11,8 @@ INCLUDE_DIRS = -I$(CUDA_HOME)/include -Iinclude
 LIBS = -L$(CUDA_HOME)/lib64 -lcudart -lcuda -lboost_iostreams -lboost_system -lboost_filesystem -lcusolver -lcusparse
 
 # Flags for compiling
-NVCC_FLAGS = -lineinfo -Xcompiler "$(CXXFLAGS)"
-DEBUG_FLAGS = -g -G -O0 -Xcompiler -std=c++17
+NVCC_FLAGS = -dc -lineinfo -Xcompiler "$(CXXFLAGS)"
+DEBUG_FLAGS = -dc -g -G -O0 -Xcompiler -std=c++17
 
 # Source and build directories
 SRC_DIR = src
@@ -24,6 +24,11 @@ SRC = $(filter-out $(SRC_DIR)/main.cu, $(wildcard $(SRC_DIR)/*.cu))
 MAIN_SRC = $(SRC_DIR)/main.cu
 TEST_SRC = $(wildcard $(TEST_DIR)/*.cu)
 
+# Object files
+OBJ = $(patsubst $(SRC_DIR)/%.cu, $(BUILD_DIR)/%.o, $(SRC))
+MAIN_OBJ = $(patsubst $(SRC_DIR)/%.cu, $(BUILD_DIR)/%.o, $(MAIN_SRC))
+TEST_OBJ = $(patsubst $(TEST_DIR)/%.cu, $(BUILD_DIR)/%.o, $(TEST_SRC))
+
 # Executable names
 EXEC = $(BUILD_DIR)/main
 DEBUG_EXEC = $(BUILD_DIR)/main_debug
@@ -33,19 +38,26 @@ DEBUG_TEST_EXEC = $(patsubst $(TEST_DIR)/%.cu, $(BUILD_DIR)/%_debug, $(TEST_SRC)
 # Target to build the executable
 all: $(EXEC) $(DEBUG_EXEC)
 
-# Rule for compiling the CUDA source files
-$(EXEC): $(MAIN_SRC) $(SRC)
-	$(NVCC) $(NVCC_FLAGS) $^ -o $@ $(LIBS) $(INCLUDE_DIRS)
+# Rule for compiling CUDA source files to object files
+$(BUILD_DIR)/%.o: $(SRC_DIR)/%.cu
+	$(NVCC) $(NVCC_FLAGS) $(INCLUDE_DIRS) -c $< -o $@
 
-$(DEBUG_EXEC): $(MAIN_SRC) $(SRC)
-	$(NVCC) $(DEBUG_FLAGS) $^ -o $@ $(LIBS) $(INCLUDE_DIRS)
+$(BUILD_DIR)/%.o: $(TEST_DIR)/%.cu
+	$(NVCC) $(NVCC_FLAGS) $(INCLUDE_DIRS) -c $< -o $@
 
-# Rules for compiling the test files
-$(BUILD_DIR)/%: $(TEST_DIR)/%.cu $(SRC)
-	$(NVCC) $(NVCC_FLAGS) $^ -o $@ $(LIBS) $(INCLUDE_DIRS)
+# Rule for linking the object files to create the executable
+$(EXEC): $(MAIN_OBJ) $(OBJ)
+	$(NVCC) $(MAIN_OBJ) $(OBJ) -o $@ $(LIBS) $(INCLUDE_DIRS)
 
-$(BUILD_DIR)/%_debug: $(TEST_DIR)/%.cu $(SRC)
-	$(NVCC) $(DEBUG_FLAGS) $^ -o $@ $(LIBS) $(INCLUDE_DIRS)
+$(DEBUG_EXEC): $(MAIN_OBJ) $(OBJ)
+	$(NVCC) $(DEBUG_FLAGS) $(MAIN_OBJ) $(OBJ) -o $@ $(LIBS) $(INCLUDE_DIRS)
+
+# Rules for compiling and linking the test files
+$(BUILD_DIR)/%: $(BUILD_DIR)/%.o $(OBJ)
+	$(NVCC) $(OBJ) $< -o $@ $(LIBS) $(INCLUDE_DIRS)
+
+$(BUILD_DIR)/%_debug: $(BUILD_DIR)/%.o $(OBJ)
+	$(NVCC) $(DEBUG_FLAGS) $(OBJ) $< -o $@ $(LIBS) $(INCLUDE_DIRS)
 
 test: $(TEST_EXEC) $(DEBUG_TEST_EXEC)
 

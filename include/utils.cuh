@@ -1,11 +1,12 @@
 #ifndef UTILS_H
 #define UTILS_H
 
-#include "constants.h"
+#include "constants.cuh"
 #include <cmath>
 #include <iostream>
 #include <stdexcept>
 #include <vector>
+#include <cuda_runtime.h>
 
 #define CHECK_CUDA(call)                                               \
     if ((call) != cudaSuccess)                                         \
@@ -29,7 +30,7 @@ void print_matrix(const int &m, const int &n, const double *A, const int &lda);
 
 void print_matrix_row_major(const int &m, const int &n, const double *A, const int &lda); 
 
-int periodic_linear_Idx(const int &x, const int &y, const int bound_x = 2*NUM_N, const int bound_y = M);
+__host__ __device__ int periodic_linear_Idx(const int &x, const int &y, const int bound_x = 2*NUM_N, const int bound_y = M);
 
 void setClosestGridPointIdx(double x, double y, int n, int m, int &closest_x_i, int &closest_y_i);
 

@@ -5,13 +5,13 @@
 #include <cuda_runtime.h>
 #include <iomanip>
 #include "gnuplot-iostream.h"
-#include "plotting.h"
-#include "constants.h"
-#include "utils.h"
-#include "init.h"
-#include "advect.h"
-#include "diffuse.h"
-#include "pressure_correction.h"
+#include "plotting.cuh"
+#include "constants.cuh"
+#include "utils.cuh"
+#include "init.cuh"
+#include "advect.cuh"
+#include "diffuse.cuh"
+#include "pressure_correction.cuh"
 
 
 //void solveDense(const std::vector<double> &A, const std::vector<double>& B, std::vector<double> & X, size_t m=2*NUM_N){
@@ -31,6 +31,11 @@ int main()
     double *divergence = (double *)malloc(NUM_N * M * sizeof(double));
     double *pressure = (double *)malloc(NUM_N * M * sizeof(double));
 
+    //setPressureGroundTruth(pressure,periodic_grid,1,NUM_N,M);
+    initializePressure(pressure,NUM_N,M);
+    initializePeriodicGrid(periodic_grid,NUM_N,M);
+    initializeVelocityGrid(velocity_grid,periodic_grid,NUM_N,M);
+    memcpy(velocity_grid_next,velocity_grid,NUM_N*M*2*sizeof(double));
 
     // Check for allocation failures
     if (periodic_grid == NULL || velocity_grid == NULL || velocity_grid_next == NULL)
@@ -39,15 +44,23 @@ int main()
         return EXIT_FAILURE;
     }
 
-    //setPressureGroundTruth(pressure,periodic_grid,1,NUM_N,M);
-    initilizePressure(pressure,NUM_N,M);
-    initializePeriodicGrid(periodic_grid,NUM_N,M);
+    if (GPU){
+        double * d_periodic_grid,* d_velocity_grid, * d_velocity_grid_next, *d_laplacian_discrete;
+        CHECK_CUDA(cudaMalloc(&d_periodic_grid, NUM_N * M * 2 * sizeof(double)));
+        CHECK_CUDA(cudaMalloc(&d_velocity_grid, NUM_N * M * 2 * sizeof(double)));
+        CHECK_CUDA(cudaMalloc(&d_velocity_grid_next, NUM_N * M * 2 * sizeof(double)));
+        CHECK_CUDA(cudaMalloc(&d_laplacian_discrete, NUM_N * M * NUM_N * M * sizeof(double)));
 
-    initilizeVelocityGrid(velocity_grid,periodic_grid,NUM_N,M);
+        const int PADDED_SIZE = TILE_SIZE + 2; //might be better to do more depending on velocities
+        const int dx = (PERIODIC_END-PERIODIC_START) / (NUM_N - 1);
+        dim3 blockDim(TILE_SIZE);
+        dim3 gridDimLaplace((NUM_N*NUM_N + TILE_SIZE-1)/TILE_SIZE); 
+        gpu::constructDiscretizedLaplacian<<<gridDimLaplace,blockDim>>>(d_laplacian_discrete,NUM_N,dx);
 
-    //initializeGaussianBlob(velocity_grid,periodic_grid,NUM_N,M,0.2,1);
+        
+    }
 
-    memcpy(velocity_grid_next,velocity_grid,NUM_N*M*2*sizeof(double));
+    
     //double *d_curr;
     //allocate memory on device    
     //CHECK_CUDA(cudaMalloc(&d_curr, NUM_N * M * sizeof(double)));

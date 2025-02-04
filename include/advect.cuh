@@ -1,8 +1,8 @@
 #pragma once
 #ifndef ADVECT_H
 #define ADVECT_H
-#include "constants.h"
-#include "utils.h"
+#include "constants.cuh"
+#include "utils.cuh"
 #include <cmath>
 
 void interpolateVelocity(double x_d, double y_d, int n, int m, double periodic_start,double periodic_end, const double *periodic_grid, const double *velocity_grid, double * velocity_grid_next);

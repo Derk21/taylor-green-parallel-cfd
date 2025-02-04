@@ -1,5 +1,5 @@
-#include "solve.h"
-#include "utils.h"
+#include "solve.cuh"
+#include "utils.cuh"
 #include <cassert>
 
 void testSolveDense(){

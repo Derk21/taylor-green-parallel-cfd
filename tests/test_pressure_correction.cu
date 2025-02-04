@@ -1,4 +1,4 @@
-#include "pressure_correction.h"
+#include "pressure_correction.cuh"
 #include <cassert>
 
 void test_divergence()
@@ -23,11 +23,12 @@ void test_divergence()
     }
     free(velocity_grid);
     free(divergence);
-    std::cout << "Divergence is correct" << std::endl;
+    std::cout << "CPU Divergence is correct" << std::endl;
 }
 
 void test_laplace()
-{ 
+{   
+    double dx = 1.0; 
     int n = 4;
     double * lp = (double *)malloc(n*n*n*n * sizeof(double));
     if (lp == NULL)
@@ -35,7 +36,7 @@ void test_laplace()
         std::cerr << "Memory allocation failed!" << std::endl;
         exit(EXIT_FAILURE);
     }
-    constructDiscretizedLaplacian(lp,n);
+    constructDiscretizedLaplacian(lp,n,dx);
 
     for (int i = 0; i < n*n; i++)
     {
@@ -44,13 +45,36 @@ void test_laplace()
         {
             row_sum += lp[i*n*n+j];
         }
-        assert(round(row_sum) == 0.0);
+        assert(is_close(row_sum,0.0));
     }
     std::cout << "Laplacian has correct row sums" << std::endl;
     std::cout << "Laplacian" << std::endl;
     print_matrix(n*n, n*n, lp, n*n);
+
+    //gpu
+    double * d_lp;
+    double *h_lp = (double*) malloc(n*n*n*n * sizeof(double));
+    CHECK_CUDA(cudaMalloc(&d_lp, n*n*n*n * sizeof(double)));
+    dim3 blockDim(4);
+    dim3 gridDim((n*n + 4 -1) / 4);
+    gpu::constructDiscretizedLaplacian<<<gridDim,blockDim>>>(d_lp,n*n,dx);
+    CHECK_CUDA(cudaMemcpy(h_lp, d_lp,n*n*n*n * sizeof(double) , cudaMemcpyDeviceToHost));
+
+    for (int i = 0; i < n*n; i++)
+    {
+        for (int j = 0; j < n*n; j++)
+        {
+            assert(is_close(lp[i*n*n+j],h_lp[i*n*n+j]));
+        }
+    }
+
+    CHECK_CUDA(cudaFree(d_lp));
+    std::cout << "GPU Laplacian is identical to CPU Laplacian" << std::endl;
     free(lp);
+    free(h_lp);
 }
+
+
 
 int main()
 {

@@ -1,4 +1,4 @@
-#include "init.h"
+#include "init.cuh"
 
 void initializePeriodicGrid(double *periodic_grid, int n, int m,const double periodic_start,const double periodic_end)
 {

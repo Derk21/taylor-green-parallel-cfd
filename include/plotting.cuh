@@ -12,7 +12,7 @@
 #include <sstream>
 #include <algorithm>
 #include <vector>
-#include "utils.h"
+#include "utils.cuh"
 
 void plotPeriodicGrid(double *periodic_grid, int n, int m);
 

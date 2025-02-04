@@ -1,5 +1,5 @@
-#include "advect.h"
-#include "init.h"
+#include "advect.cuh"
+#include "init.cuh"
 #include <cassert>
 
 

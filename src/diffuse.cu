@@ -1,4 +1,4 @@
-#include "diffuse.h"
+#include "diffuse.cuh"
 
 void diffuseExplicitStep(const double *velocity_grid, double *velocity_grid_next, double amount,int n, int m)
 {

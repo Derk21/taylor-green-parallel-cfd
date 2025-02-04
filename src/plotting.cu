@@ -1,4 +1,4 @@
-#include "plotting.h"
+#include "plotting.cuh"
 
 void plotPeriodicGrid(double *periodic_grid, int n, int m) {
     std::ofstream data_file_x("periodic_grid_data_x.dat");
