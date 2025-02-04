@@ -120,6 +120,20 @@ bool is_close(const double &a, const double &b, const double &tolerance)
     return std::fabs(a - b) < tolerance;
 }
 
+bool all_close(const double * a,const double* b,int n, int m) 
+{
+    for (int i = 0; i < m; i++)
+        {
+            for (int j = 0; j < n; j++)
+            {
+                if (!is_close(a[i*n+j],b[i*n+j])){
+                   return false; 
+                }
+            }
+        }
+    return true;
+}
+
 void clip(double &v,const double min, const double max)
 {
     v = std::max(min,std::min(v,max));

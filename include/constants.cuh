@@ -7,8 +7,8 @@
     #define TILE_SIZE 16
     //TILING etc
 //Simulation
-    #define NUM_N 128//64              // Grid size X
-    #define M 128//64              // Grid size Y
+    #define NUM_N 64              // Grid size X
+    #define M 64              // Grid size Y
     #define ITERATIONS 60    // Number of iterations
     #define PERIODIC_START 0.0
     #define PERIODIC_END (2 * M_PI)

@@ -38,6 +38,8 @@ void test_setClosestGridPointIdx();
 
 bool is_close(const double &a, const double &b, const double &tolerance = 1e-6);
 
+bool all_close(const double * a,const double* b,int n, int m);
+
 void clip(double &v,const double min, const double max);
 
 void switchRowColMajor(double *A_rowMajor, const int &m, const int &n);

@@ -14,16 +14,29 @@ void test_divergence()
             velocity_grid[y_i * (2*n) + i] = 1.0;
         }
     }
-    print_matrix(2*n, n, velocity_grid, 2*n);
     calculateDivergence(velocity_grid,divergence,n,n);
-    print_matrix(n, n, divergence, n);
     for (int i = 0; i < n*n; i++)
     {
         assert(divergence[i] == 0.0);
     }
+    std::cout << "CPU Divergence is correct" << std::endl;
+    double *d_div, *d_vel;
+    double *h_div = (double*) malloc(n*n * sizeof(double));
+    CHECK_CUDA(cudaMalloc(&d_div, n*n* sizeof(double)));
+    CHECK_CUDA(cudaMalloc(&d_vel, n*n*2* sizeof(double)));
+
+    CHECK_CUDA(cudaMemcpy(d_vel, velocity_grid,n*n*2* sizeof(double) , cudaMemcpyHostToDevice));
+    //gpu test
+    dim3 blockDim(TILE_SIZE,TILE_SIZE);
+    dim3 gridDim((NUM_N+ TILE_SIZE-1)/TILE_SIZE,(NUM_N + TILE_SIZE-1)/TILE_SIZE); 
+    gpu::calculateDivergence<<<gridDim,blockDim>>>(d_vel,d_div,n,n);
+
+    CHECK_CUDA(cudaMemcpy(h_div, d_div,n*n* sizeof(double) , cudaMemcpyDeviceToHost));
+    assert(all_close(h_div,divergence,n,n));
+    std::cout << "CPU Divergence is identical to GPU divergence" << std::endl;
+
     free(velocity_grid);
     free(divergence);
-    std::cout << "CPU Divergence is correct" << std::endl;
 }
 
 void test_laplace()
@@ -59,13 +72,8 @@ void test_laplace()
     CHECK_CUDA(cudaMemcpy(h_lp, d_lp,n*n*n*n * sizeof(double) , cudaMemcpyDeviceToHost));
     std::cout << "gpu laplacian:" << std::endl;
     print_matrix_row_major(n*n,n*n,h_lp,n*n);
-    for (int i = 0; i < n*n; i++)
-    {
-        for (int j = 0; j < n*n; j++)
-        {
-            assert(is_close(lp[i*n*n+j],h_lp[i*n*n+j]));
-        }
-    }
+
+    assert(all_close(lp,h_lp,n*n,n*n));
     
 
     CHECK_CUDA(cudaFree(d_lp));

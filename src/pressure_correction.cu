@@ -60,7 +60,7 @@ void make_incompressible(double* velocity_grid, double* d_B, double* laplace, in
     /*d_B is used for divergence and pressure data*/
 
     dim3 blockDim(TILE_SIZE,TILE_SIZE);
-    dim3 gridDim((NUM_N*NUM_N + TILE_SIZE-1)/TILE_SIZE); 
+    dim3 gridDim((NUM_N + TILE_SIZE-1)/TILE_SIZE,(NUM_N + TILE_SIZE-1)/TILE_SIZE); 
     gpu::calculateDivergence<<<gridDim,blockDim>>>(velocity_grid,d_B,n,m,DX);
     gpu::solveDense(laplace,d_B,n*m);
     gpu::correct_velocity<<<gridDim,blockDim>>>(velocity_grid,d_B,n,m,DX);
