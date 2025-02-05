@@ -61,13 +61,13 @@ void makeIncompressible(double* velocity_grid, double* d_B, double* laplace, int
     /*d_B is used for divergence and pressure data*/
 
     dim3 blockDim(TILE_SIZE,TILE_SIZE);
-    dim3 gridDimDiv((n + TILE_SIZE-1)/TILE_SIZE,(+ TILE_SIZE-1)/TILE_SIZE); 
+    dim3 gridDimDiv((n + TILE_SIZE-1)/TILE_SIZE,(n+ TILE_SIZE-1)/TILE_SIZE); 
     gpu::calculateDivergence<<<gridDimDiv,blockDim>>>(velocity_grid,d_B,n,m,DX);
     CHECK_CUDA(cudaDeviceSynchronize());
     gpu::solveDense(laplace,d_B,n*m);
 
     //TODO: parallelize u and v correction? -> don't coalesce?
-    dim3 gridDimVel((NUM_N + TILE_SIZE-1)/TILE_SIZE,(NUM_N + TILE_SIZE-1)/TILE_SIZE); 
+    dim3 gridDimVel((n + TILE_SIZE-1)/TILE_SIZE,(n + TILE_SIZE-1)/TILE_SIZE); 
     gpu::correct_velocity<<<gridDimVel,blockDim>>>(velocity_grid,d_B,n,m,DX);
 }
 

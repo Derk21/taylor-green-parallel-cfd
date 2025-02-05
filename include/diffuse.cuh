@@ -4,7 +4,15 @@
 #include "constants.cuh"
 #include "utils.cuh"
 
-void diffuseExplicitStep(const double *velocity_grid, double *velocity_grid_next, double amount,int n=NUM_N, int m=M);
-void diffuseExplicit(double *velocity_grid, double *velocity_grid_next, int n=NUM_N, int m=M);
-void diffuseImplicit(double *velocity_grid, double *velocity_grid_next, int n=NUM_N, int m=M);
+void diffuseExplicitStep(const double *velocity_grid, double *velocity_grid_next, const double amount,const int n=NUM_N, const int m=M,const double dx = DX);
+
+void diffuseExplicit(double *velocity_grid, double *velocity_grid_next, const int n=NUM_N, const int m=M, const double dx=DX);
+
+namespace gpu 
+{
+__global__ void diffuseExplicitStep(double *velocity_grid, const double amount,const int n=NUM_N, const int m=M,const double dx = DX);
+
+void diffuseExplicit(double *velocity_grid, const int n=NUM_N, const int m=M,const double dx = DX);
+
+}
 #endif // DIFFUSE_H
