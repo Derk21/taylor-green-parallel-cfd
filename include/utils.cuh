@@ -32,15 +32,13 @@ void print_matrix_row_major(const int &m, const int &n, const double *A, const i
 
 __host__ __device__ int periodic_linear_Idx(const int &x, const int &y, const int bound_x = 2*NUM_N, const int bound_y = M);
 
-void setClosestGridPointIdx(double x, double y, int n, int m, int &closest_x_i, int &closest_y_i);
+__host__ __device__ void setClosestGridPointIdx(double x, double y, int n, int m, int &closest_x_i, int &closest_y_i);
 
-void test_setClosestGridPointIdx();
-
-bool is_close(const double &a, const double &b, const double &tolerance = 1e-6);
+__host__ __device__ bool is_close(const double &a, const double &b, const double &tolerance = 1e-6);
 
 bool all_close(const double * a,const double* b,int n, int m);
 
-void clip(double &v,const double min, const double max);
+__host__ __device__ void clip(double &v,const double min, const double max);
 
 void switchRowColMajor(double *A_rowMajor, const int &m, const int &n);
 

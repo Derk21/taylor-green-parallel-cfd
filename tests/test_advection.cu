@@ -16,6 +16,7 @@ void test_interpolation(){
     }
     double periodic_start = 1.0;
     double periodic_end = 4.0;
+    double dx = (periodic_end-periodic_start)/(n-1);
     // Initialize periodic grid
     initializePeriodicGrid(periodic_grid,n,m,1.0,4.0); 
     //for (int y_i = 0; y_i < m; y_i++) {
@@ -40,7 +41,7 @@ void test_interpolation(){
     }
     std::cout << "velocity grid " <<std::endl;
     //print_matrix_row_major(m,2*n,velocity_grid,2*n);
-
+    
     // Test point for interpolation
     double x_d = 0.25;
     double y_d = 0.25;
@@ -48,14 +49,9 @@ void test_interpolation(){
     // Expected results for bilinear interpolation
     double expected_u = (0.75*0.75) * 0.0 + (0.75*0.25) * 2.0 + (0.75*0.25) * 1 + (0.25*0.25) * 3;
     double expected_v = (0.75*0.75) * 1.0 + (0.75*0.25) * 3.0 + (0.75*0.25) * 2 + (0.25*0.25) * 4;
-    //double expected_v = 0.25 * 1.0 + 0.25 * 3.0 + 0.25 * 2 + 0.25 * 4;
-    //double expected_v = 1.5 * (1.0 - 1.5) * velocity_grid[periodic_linear_Idx(1, 1,2*n,m)] +
-                        //1.5 * 1.5 * velocity_grid[periodic_linear_Idx(1, 2,2*n,m)] +
-                        //(1.0 - 1.5) * (1.0 - 1.5) * velocity_grid[periodic_linear_Idx(3, 1,2*n,m)] +
-                        //(1.0 - 1.5) * 1.5 * velocity_grid[periodic_linear_Idx(3, 2,2*n,m)];
 
-    // Perform interpolation
-    interpolateVelocity(x_d, y_d, n, m,periodic_start,periodic_end, periodic_grid, velocity_grid, velocity_grid_next);
+    // cpu interpolation
+    interpolateVelocity(x_d,y_d,periodic_grid,velocity_grid,velocity_grid_next,n,m,dx);
     std::cout << "velocity grid after interpolation" <<std::endl;
     //print_matrix_row_major(m,2*n,velocity_grid_next,2*n);
     double u_interpolated = velocity_grid_next[periodic_linear_Idx(0,0,2*n,m)];
@@ -76,8 +72,81 @@ void test_interpolation(){
 
 }
 
+void test_MacCormackAdvection()
+{
+    int n = 4;
+    int m = 4;
+    double *periodic_grid = (double *)malloc(n * m * 2 * sizeof(double));
+    double *velocity_grid = (double *)malloc(n * m * 2 * sizeof(double));
+    double *velocity_grid_next = (double *)malloc(n * m * 2 * sizeof(double));
+
+
+    if (periodic_grid == NULL || velocity_grid == NULL || velocity_grid_next == NULL)
+    {
+        std::cerr << "Memory allocation failed!" << std::endl;
+        return exit(EXIT_FAILURE);
+    }
+    double periodic_start = 1.0;
+    double periodic_end = 4.0;
+    double dx = (periodic_end-periodic_start)/(n-1);
+    // Initialize periodic grid
+    initializePeriodicGrid(periodic_grid,n,m,1.0,4.0); 
+    std::cout << "periodic grid" <<std::endl;
+
+    // Initialize velocity grid with known values
+    for (int y_i = 0; y_i < m; y_i++) {
+        for (int i = 0; i < 2 * n; i++) {
+            velocity_grid[periodic_linear_Idx(i, y_i,2*n,m)] = i + y_i;
+            velocity_grid_next[periodic_linear_Idx(i, y_i,2*n,m)] = i + y_i;
+            //velocity_grid[periodic_linear_Idx(i, y_i,2*n,m)] = 0.0;
+            //velocity_grid_next[periodic_linear_Idx(i, y_i,2*n,m)] = 0.0;
+        }
+    }
+    std::cout << "velocity grid " <<std::endl;
+    print_matrix_row_major(m,2*n,velocity_grid,2*n);
+    
+    //cuda init
+    double *d_vel,*d_vel_fw,*d_vel_bw,*d_periodic;
+    double *h_vel= (double*) malloc(n*n * 2 * sizeof(double));
+
+    CHECK_CUDA(cudaMalloc(&d_vel, n*n*2* sizeof(double)));
+    CHECK_CUDA(cudaMalloc(&d_vel_fw, n*n*2* sizeof(double)));
+    CHECK_CUDA(cudaMalloc(&d_vel_bw, n*n*2* sizeof(double)));
+    CHECK_CUDA(cudaMalloc(&d_periodic, n*n*2* sizeof(double)));
+
+    CHECK_CUDA(cudaMemcpy(d_vel, velocity_grid,n*n*2* sizeof(double) , cudaMemcpyHostToDevice));
+    CHECK_CUDA(cudaMemcpy(d_vel_fw, velocity_grid,n*n*2* sizeof(double) , cudaMemcpyHostToDevice));
+    CHECK_CUDA(cudaMemcpy(d_vel_bw, velocity_grid,n*n*2* sizeof(double) , cudaMemcpyHostToDevice));
+    CHECK_CUDA(cudaMemcpy(d_periodic, periodic_grid,n*n*2* sizeof(double) , cudaMemcpyHostToDevice));
+
+    // cpu  
+    advectMacCormack(velocity_grid,velocity_grid_next,periodic_grid,TIMESTEP,n,m);
+    std::cout << "velocity grid after advection CPU" <<std::endl;
+    print_matrix_row_major(m,2*n,velocity_grid,2*n);
+
+    //GPU 
+    gpu::advectMacCormack(d_vel,d_vel_bw,d_vel_fw,d_periodic,TIMESTEP,n,m);
+    CHECK_CUDA(cudaMemcpy(h_vel, d_vel,n*n*2* sizeof(double) , cudaMemcpyDeviceToHost));
+    std::cout << "velocity grid after advection GPU" <<std::endl;
+    print_matrix_row_major(m,2*n,h_vel,2*n);
+
+    assert(all_close(h_vel,velocity_grid,2*n,m));
+
+    //// Check results
+    //assert(is_close(velocity_grid_next[periodic_linear_Idx(0,0,2*n,m)], expected_u));
+    //assert(is_close(velocity_grid_next[periodic_linear_Idx(1, 1,2*n,m)], expected_v));
+    CHECK_CUDA(cudaFree(d_periodic));
+    CHECK_CUDA(cudaFree(d_vel));
+    free(h_vel);
+    free(periodic_grid);
+    free(velocity_grid);
+    free(velocity_grid_next);
+    std::cout << "Interpolation test passed!" << std::endl;
+}
+
 int main()
 {
     test_interpolation();
+    test_MacCormackAdvection();
     std::cout << "All tests passed" << std::endl;
 }
