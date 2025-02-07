@@ -99,7 +99,7 @@ void test_make_incompressible()
     print_matrix_row_major(n,n,divergence,n);
 
     makeIncompressible(velocity_grid,divergence,pressure,n,n,dx);
-    std::cout << "velocity after correction" << std::endl;
+    std::cout << "CPU velocity after correction" << std::endl;
     print_matrix_row_major(n,2*n,velocity_grid,2*n);
     assert(!all_close(velocity_grid,velocity_grid_copy,2*n,n));
     //GPU
@@ -109,7 +109,7 @@ void test_make_incompressible()
     CHECK_CUDA(cudaMalloc(&d_div, n*n* sizeof(double)));
     CHECK_CUDA(cudaMalloc(&d_vel, n*n*2* sizeof(double)));
     CHECK_CUDA(cudaMalloc(&d_lp, n*n*n*n * sizeof(double)));
-    CHECK_CUDA(cudaMemcpy(d_vel, velocity_grid,n*n*2* sizeof(double) , cudaMemcpyHostToDevice));
+    CHECK_CUDA(cudaMemcpy(d_vel, velocity_grid_copy,n*n*2* sizeof(double) , cudaMemcpyHostToDevice));
 
     //GPU
     gpu::constructDiscretizedLaplacian(d_lp,n,dx);
@@ -121,10 +121,11 @@ void test_make_incompressible()
     CHECK_CUDA(cudaMemset(d_div,0,n*n*sizeof(double)));
     gpu::makeIncompressible(d_vel,d_div,d_lp,n,n);
     CHECK_CUDA(cudaMemcpy(h_vel, d_vel,n*n*2* sizeof(double) , cudaMemcpyDeviceToHost));
-    assert(!all_close(h_vel,velocity_grid_copy,2*n,n));
-    std::cout << "CPU corrected velocity is identical to GPU corrected velocity" << std::endl;
-    std::cout << "velocity after correction" << std::endl;
+    std::cout << "GPU velocity after correction" << std::endl;
     print_matrix_row_major(n,2*n,h_vel,2*n);
+    assert(!all_close(h_vel,velocity_grid_copy,2*n,n));
+    assert(all_close(h_vel,velocity_grid,2*n,n));
+    //std::cout << "CPU corrected velocity is identical to GPU corrected velocity" << std::endl;
     
 
     CHECK_CUDA(cudaFree(d_div));
