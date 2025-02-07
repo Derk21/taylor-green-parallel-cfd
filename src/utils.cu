@@ -134,19 +134,19 @@ bool all_close(const double * a,const double* b,int n, int m)
     return true;
 }
 
-void clip(double &v,const double min, const double max)
+__host__ void clip(double &v,const double min, const double max)
 {
-    //v = std::max(min,std::min(v,max));
-    v = fmax(min,fmin(v,max));
+    v = std::max(min,std::min(v,max));
+    //v = fmax(min,fmin(v,max));
 }
 
-//namespace gpu
-//{
-    //void clip(double &v,const double min, const double max)
-    //{
-        //v = fmax(min,fmin(v,max));
-    //}
-//}
+namespace gpu
+{
+   __device__ void clip(double &v,const double min, const double max)
+    {
+        v = fmax(min,fmin(v,max));
+    }
+}
 
 double calculateRMSE(const std::vector<double>& reference, const std::vector<double>& simulation)
 {

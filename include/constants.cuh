@@ -18,7 +18,7 @@
     //explicit diffusion
     #define SUBSTEPS_EXPLICIT 40 //40-80 are recommended
     //advection
-    #define MACCORMACK_CORRECTION 1.0
+    #define MACCORMACK_CORRECTION 0.8//1.0
 
 
 #endif // CONSTANTS_H

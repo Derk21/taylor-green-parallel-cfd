@@ -35,6 +35,7 @@ int main()
     initializePressure(pressure,NUM_N,M);
     initializePeriodicGrid(periodic_grid,NUM_N,M);
     initializeVelocityGrid(velocity_grid,periodic_grid,NUM_N,M);
+    //initializeGaussianBlob(velocity_grid,periodic_grid,NUM_N,M,0.5,1);
     memcpy(velocity_grid_next,velocity_grid,NUM_N*M*2*sizeof(double));
 
     // Check for allocation failures
@@ -73,8 +74,8 @@ int main()
     for (int i = 1; i < ITERATIONS+1; i++){
         std::stringstream plot_name;
         diffuseExplicit(velocity_grid,velocity_grid_next);
-        //advectSemiLagrange(velocity_grid,velocity_grid_next,periodic_grid,TIMESTEP);
-        advectMacCormack(velocity_grid,velocity_grid_next,periodic_grid,TIMESTEP);
+        advectSemiLagrange(velocity_grid,velocity_grid_next,periodic_grid,TIMESTEP);
+        //advectMacCormack(velocity_grid,velocity_grid_next,periodic_grid,TIMESTEP);
         makeIncompressible(velocity_grid,divergence,pressure);
 
         //taylorGreenGroundTruth(periodic_grid,velocity_grid_next,i,NUM_N,M);

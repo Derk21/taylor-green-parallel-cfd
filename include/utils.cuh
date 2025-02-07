@@ -38,7 +38,11 @@ __host__ __device__ bool is_close(const double &a, const double &b, const double
 
 bool all_close(const double * a,const double* b,int n, int m);
 
-__host__ __device__ void clip(double &v,const double min, const double max);
+__host__ void clip(double &v,const double min, const double max);
+
+namespace gpu {
+__device__ void clip(double &v,const double min, const double max);
+}
 
 void switchRowColMajor(double *A_rowMajor, const int &m, const int &n);
 
