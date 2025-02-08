@@ -3,7 +3,8 @@
 #define CONSTANTS_H
 // Performance Optimizing Parameters
     #define GPU true
-    #define BATCH_SIZE 10 // number of simulation steps before copy to host
+    #define CPU false
+    #define BUFFER_SIZE 10 // number of simulation steps before copy to host
     #define TILE_SIZE 16
     //TILING etc
 //Simulation
@@ -18,7 +19,7 @@
     //explicit diffusion
     #define SUBSTEPS_EXPLICIT 40 //40-80 are recommended
     //advection
-    #define MACCORMACK_CORRECTION 0.8//1.0
+    #define MACCORMACK_CORRECTION 1.0//0.8//1.0
 
 
 #endif // CONSTANTS_H

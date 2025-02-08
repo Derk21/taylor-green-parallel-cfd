@@ -33,9 +33,10 @@ void test_diffuseExplicitStep()
         }
     }
     std::string dirname = "test_output/";
-    int y_i_half = m / 2;
-    int i_half = 2*n / 2;
-    velocity_grid[y_i_half * (2*n) + i_half] = 1.0;
+    //int y_i_half = m / 2;
+    //int i_half = 2*n / 2;
+    //velocity_grid[y_i_half * (2*n) + i_half] = 1.0;
+    velocity_grid[(m-1) * (2*n) + (2*(n-1))]= 1.0;
 
     std::cout << "before diffusion:" << std::endl;
     print_matrix_row_major(m,2*n, velocity_grid,2*n);
@@ -43,10 +44,10 @@ void test_diffuseExplicitStep()
     //plotVelocityGrid(periodic_grid,velocity_grid, n, m,PERIODIC_START,PERIODIC_END, filename,dirname);
 
     //cuda inits
-    double *d_vel;
+    double *d_vel=NULL;
     double *h_vel= (double*) malloc(n*n * 2 * sizeof(double));
 
-    CHECK_CUDA(cudaMalloc(&d_vel, n*n*2* sizeof(double)));
+    CHECK_CUDA(cudaMalloc((void**)&d_vel, n*n*2* sizeof(double)));
     CHECK_CUDA(cudaMemcpy(d_vel, velocity_grid,n*n*2* sizeof(double) , cudaMemcpyHostToDevice));
 
     diffuseExplicit(velocity_grid, velocity_grid_next, n, m,dx);

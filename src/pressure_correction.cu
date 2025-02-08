@@ -56,19 +56,19 @@ void correct_velocity(double * velocity_grid,double * pressure,int n, int m, dou
 namespace gpu 
 {
 
-void makeIncompressible(double* velocity_grid, double* d_B, double* laplace, int n, int m)
+void makeIncompressible(double* velocity_grid, double* d_B, double* laplace, int n, int m,double dx)
 {
     /*d_B is used for divergence and pressure data*/
 
     dim3 blockDim(TILE_SIZE,TILE_SIZE);
-    dim3 gridDimDiv((n + TILE_SIZE-1)/TILE_SIZE,(n+ TILE_SIZE-1)/TILE_SIZE); 
-    gpu::calculateDivergence<<<gridDimDiv,blockDim>>>(velocity_grid,d_B,n,m,DX);
+    dim3 gridDim((n+ TILE_SIZE-1)/TILE_SIZE,(m+ TILE_SIZE-1)/TILE_SIZE); 
+    gpu::calculateDivergence<<<gridDim,blockDim>>>(velocity_grid,d_B,n,n,dx);
     CHECK_CUDA(cudaDeviceSynchronize());
     gpu::solveDense(laplace,d_B,n*m);
 
     //TODO: parallelize u and v correction? -> don't coalesce?
-    dim3 gridDimVel((n + TILE_SIZE-1)/TILE_SIZE,(n + TILE_SIZE-1)/TILE_SIZE); 
-    gpu::correct_velocity<<<gridDimVel,blockDim>>>(velocity_grid,d_B,n,m,DX);
+    dim3 gridDimVel((n + TILE_SIZE-1)/TILE_SIZE,(m + TILE_SIZE-1)/TILE_SIZE); 
+    gpu::correct_velocity<<<gridDimVel,blockDim>>>(velocity_grid,d_B,n,m,dx);
 }
 
 __global__ void correct_velocity(double * velocity_grid,double * pressure,int n, int m, double dx)
@@ -87,6 +87,9 @@ __global__ void correct_velocity(double * velocity_grid,double * pressure,int n,
 
             velocity_grid[periodic_linear_Idx(u_i,row,2*n,m)] -= p_dx;
             velocity_grid[periodic_linear_Idx(v_i,row,2*n,m)] -= p_dy;
+    }
+    else{
+        return;
     }
 }
 }
@@ -129,7 +132,7 @@ __global__ void calculateDivergence(const double* velocity_grid,double*divergenc
     int col = threadIdx.x + blockIdx.x * blockDim.x; 
     int row = threadIdx.y + blockIdx.y * blockDim.y; 
 
-    if (row < M && col < NUM_N)
+    if ((row < m) && (col < n))
     {
         int u_i = 2 * col;
         int v_i = 2 * col + 1;
@@ -148,6 +151,9 @@ __global__ void calculateDivergence(const double* velocity_grid,double*divergenc
         //double div = (u - u_left) / dx + (v - v_down) / dy;
         divergence[periodic_linear_Idx(col,row,n,m)] = div;
 
+    }
+    else{
+        return;
     }
 }
 }

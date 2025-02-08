@@ -17,7 +17,7 @@ foreach(TEST_FILE ${TEST_FILES})
     # Debug version 
     add_executable(${TEST_NAME}_debug ${TEST_FILE} ${SRC_FILES})
     target_compile_definitions(${TEST_NAME}_debug PRIVATE DEBUG)
-    target_compile_options(${TEST_NAME}_debug PRIVATE -g -O0)
+    target_compile_options(${TEST_NAME}_debug PRIVATE -g -O0 -G -lineinfo  -rdynamic)
     target_link_libraries(${TEST_NAME}_debug ${CUDA_LIBRARIES} ${CUDA_CUBLAS_LIBRARIES} ${CUDA_curand_LIBRARY} ${CUDA_cusolver_LIBRARY} ${CUDA_cusparse_LIBRARY} boost_iostreams boost_system boost_filesystem)
     set_target_properties(${TEST_NAME}_debug PROPERTIES CUDA_SEPARABLE_COMPILATION ON)
 endforeach()

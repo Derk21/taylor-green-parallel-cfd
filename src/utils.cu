@@ -34,10 +34,10 @@ void switchRowColMajor(double *A, const int &m, const int &n)
 }
 
 __host__ __device__ 
-int periodic_linear_Idx(const int &x, const int &y, const int bound_x , const int bound_y )
+size_t periodic_linear_Idx(const int &x, const int &y, const int bound_x , const int bound_y )
 {   
-    int mod_x = (x + bound_x) % bound_x; // ensures non-negative result
-    int mod_y = (y + bound_y) % bound_y;
+    size_t mod_x = (x + bound_x) % bound_x; // ensures non-negative result
+    size_t mod_y = (y + bound_y) % bound_y;
     return mod_y * bound_x + mod_x;
 }
 
