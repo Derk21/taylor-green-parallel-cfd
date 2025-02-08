@@ -45,21 +45,82 @@ int main()
         return EXIT_FAILURE;
     }
 
-    //if (GPU){
-        //double * d_periodic_grid,* d_velocity_grid, * d_velocity_grid_next, *d_laplacian_discrete;
-        //CHECK_CUDA(cudaMalloc(&d_periodic_grid, NUM_N * M * 2 * sizeof(double)));
-        //CHECK_CUDA(cudaMalloc(&d_velocity_grid, NUM_N * M * 2 * sizeof(double)));
-        //CHECK_CUDA(cudaMalloc(&d_velocity_grid_next, NUM_N * M * 2 * sizeof(double)));
-        //CHECK_CUDA(cudaMalloc(&d_laplacian_discrete, NUM_N * M * NUM_N * M * sizeof(double)));
+    std::string dirName = createTimestampedDirectory();
+    //plotPeriodicGrid(periodic_grid, NUM_N, M);
+    std::string plot_name("velocity_0000");
+    plotVelocityGrid(periodic_grid, velocity_grid, NUM_N, M, PERIODIC_START, PERIODIC_END,plot_name, dirName);
 
-        //const int PADDED_SIZE = TILE_SIZE + 2; //might be better to do more depending on velocities
-        //const int dx = (PERIODIC_END-PERIODIC_START) / (NUM_N - 1);
-        //dim3 blockDim(TILE_SIZE);
-        //dim3 gridDimLaplace((NUM_N*NUM_N + TILE_SIZE-1)/TILE_SIZE); 
-        //gpu::fillLaplaceValues<<<gridDimLaplace,blockDim>>>(d_laplacian_discrete,NUM_N,dx);
-
+    if (GPU){
+        double * d_periodic_grid,* d_velocity_grid, * d_velocity_grid_next, *d_laplace,*d_divergence;
+        //TODO:replace with a buffer instead
+        double * h_velocity_buffer = (double*)malloc( BUFFER_SIZE * NUM_N * M * 2 * sizeof(double));
+        double * d_velocity_buffer;
+        CHECK_CUDA(cudaMalloc(&d_velocity_buffer, BUFFER_SIZE * NUM_N * M * 2 * sizeof(double)));
         
-    //}
+        CHECK_CUDA(cudaMalloc(&d_periodic_grid, NUM_N * M * 2 * sizeof(double)));
+        CHECK_CUDA(cudaMalloc(&d_velocity_grid, NUM_N * M * 2 * sizeof(double)));
+        CHECK_CUDA(cudaMalloc(&d_velocity_grid_next, NUM_N * M * 2 * sizeof(double)));
+
+        CHECK_CUDA(cudaMalloc(&d_laplace, NUM_N * M * NUM_N * M * sizeof(double)));
+        CHECK_CUDA(cudaMalloc(&d_divergence, NUM_N * M * sizeof(double)));
+
+        CHECK_CUDA(cudaMemcpy(d_periodic_grid,periodic_grid,NUM_N*M*2*sizeof(double),cudaMemcpyHostToDevice));
+        CHECK_CUDA(cudaMemcpy(d_velocity_grid,velocity_grid,NUM_N*M*2*sizeof(double),cudaMemcpyHostToDevice));
+        CHECK_CUDA(cudaMemcpy(d_velocity_grid_next,velocity_grid_next,NUM_N*M*2*sizeof(double),cudaMemcpyHostToDevice));
+
+        CHECK_CUDA(cudaMemset(d_divergence,0,NUM_N * M * sizeof(double)))
+
+        auto start_gpu = std::chrono::system_clock::now();
+        gpu::constructDiscretizedLaplacian(d_laplace);
+
+        for (int i = 1; i < ITERATIONS+1; i++){
+            gpu::diffuseExplicit(d_velocity_grid);
+            
+            //gpu::advectSemiLagrange(d_velocity_grid,d_velocity_grid_next,d_periodic_grid);
+            //gpu::advectMacCormack()
+            //gpu::makeIncompressible(velocity_grid,d_divergence,d_laplace);
+
+            //copy result to buffer
+            int buffer_index = (i - 1) % BUFFER_SIZE;  
+            double* d_buffer_ptr = d_velocity_buffer + buffer_index * NUM_N * M * 2;
+            CHECK_CUDA(cudaMemcpy(d_buffer_ptr, d_velocity_grid, NUM_N * M * 2 * sizeof(double), cudaMemcpyDeviceToDevice));
+
+            //save results when buffer full
+            if (i % BUFFER_SIZE == 0) {
+                CHECK_CUDA(cudaMemcpy(h_velocity_buffer, d_velocity_buffer, BUFFER_SIZE * NUM_N * M * 2 * sizeof(double), cudaMemcpyDeviceToHost));
+
+                for (int j = 0; j < BUFFER_SIZE; j++) {
+                    std::stringstream plot_name;
+                    plot_name << "velocity_" << std::setw(4) << std::setfill('0') << (i - BUFFER_SIZE + j + 1);
+                    plotVelocityGrid(periodic_grid, h_velocity_buffer + j * NUM_N * M * 2, NUM_N, M, PERIODIC_START, PERIODIC_END, plot_name.str(), dirName);
+                }
+            }
+        }
+        
+        // Copy only the remaining velocities from device to host
+        int remaining_iterations = ITERATIONS % BUFFER_SIZE;
+        if (remaining_iterations > 0) {
+            int last_full_batch_iteration = (ITERATIONS / BUFFER_SIZE) * BUFFER_SIZE;
+            CHECK_CUDA(cudaMemcpy(h_velocity_buffer, d_velocity_buffer, remaining_iterations * NUM_N * M * 2 * sizeof(double), cudaMemcpyDeviceToHost));
+
+            for (int j = 0; j < remaining_iterations; j++) {
+                std::stringstream plot_name;
+                plot_name << "velocity_" << std::setw(4) << std::setfill('0') << (last_full_batch_iteration + j + 1);
+                plotVelocityGrid(periodic_grid, h_velocity_buffer + j * NUM_N * M * 2, NUM_N, M, PERIODIC_START, PERIODIC_END, plot_name.str(), dirName);
+            }
+        }
+
+
+        auto end_gpu= std::chrono::system_clock::now();
+        std::chrono::duration<double> gpu_seconds = end_gpu - start_gpu;
+        std::cout << "gpu time: " << gpu_seconds.count() << "s" <<std::endl;
+        free(h_velocity_buffer);
+        CHECK_CUDA(cudaFree(d_periodic_grid));
+        CHECK_CUDA(cudaFree(d_velocity_grid));
+        CHECK_CUDA(cudaFree(d_velocity_grid_next));
+        CHECK_CUDA(cudaFree(d_laplace));
+        CHECK_CUDA(cudaFree(d_divergence));
+    }
 
     
     //double *d_curr;
@@ -67,23 +128,26 @@ int main()
     //CHECK_CUDA(cudaMalloc(&d_curr, NUM_N * M * sizeof(double)));
     //copy data to device
     //CHECK_CUDA(cudaMemcpy(d_curr, curr, NUM_N * M * sizeof(double), cudaMemcpyHostToDevice));
-    std::string dirName = createTimestampedDirectory();
-    //plotPeriodicGrid(periodic_grid, NUM_N, M);
-    std::string plot_name("velocity_0000");
-    plotVelocityGrid(periodic_grid, velocity_grid, NUM_N, M, PERIODIC_START, PERIODIC_END,plot_name, dirName);
-    for (int i = 1; i < ITERATIONS+1; i++){
-        std::stringstream plot_name;
-        diffuseExplicit(velocity_grid,velocity_grid_next);
-        advectSemiLagrange(velocity_grid,velocity_grid_next,periodic_grid,TIMESTEP);
-        //advectMacCormack(velocity_grid,velocity_grid_next,periodic_grid,TIMESTEP);
-        makeIncompressible(velocity_grid,divergence,pressure);
+    if (CPU){
 
-        //taylorGreenGroundTruth(periodic_grid,velocity_grid_next,i,NUM_N,M);
-        //std::swap(velocity_grid,velocity_grid_next);
+        auto start_cpu = std::chrono::system_clock::now();
+        for (int i = 1; i < ITERATIONS+1; i++){
+            std::stringstream plot_name;
+            diffuseExplicit(velocity_grid,velocity_grid_next);
+            advectSemiLagrange(velocity_grid,velocity_grid_next,periodic_grid,TIMESTEP);
+            //advectMacCormack(velocity_grid,velocity_grid_next,periodic_grid,TIMESTEP);
+            makeIncompressible(velocity_grid,divergence,pressure);
+
+            //taylorGreenGroundTruth(periodic_grid,velocity_grid_next,i,NUM_N,M);
+            //std::swap(velocity_grid,velocity_grid_next);
         
-        plot_name << "velocity_"<< std::setw(4) << std::setfill('0') << i;
-        plotVelocityGrid(periodic_grid, velocity_grid, NUM_N, M, PERIODIC_START, PERIODIC_END,plot_name.str(), dirName);
-        plot_name.str("");
+            //plot_name << "velocity_"<< std::setw(4) << std::setfill('0') << i;
+            //plotVelocityGrid(periodic_grid, velocity_grid, NUM_N, M, PERIODIC_START, PERIODIC_END,plot_name.str(), dirName);
+            //plot_name.str("");
+        }
+        auto end_cpu = std::chrono::system_clock::now();
+        std::chrono::duration<double> gpu_seconds = end_cpu - start_cpu;
+        std::cout << "cpu time: " << gpu_seconds.count() << "s" <<std::endl;
     }
     std::cout << "Creating velocity animation" << std::endl;
     createGifFromPngs(dirName,"animation_velocity.gif",PERIODIC_START,PERIODIC_END);

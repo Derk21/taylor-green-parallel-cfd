@@ -32,11 +32,11 @@ void solveDense(const double * A, const double *  B, double * X, size_t m){
 
     const int pivot_on = 1;
 
-    if (pivot_on) {
-        printf("pivot is on : compute P*A = L*U \n");
-    } else {
-        printf("pivot is off: compute A = L*U (not numerically stable)\n");
-    }
+    //if (pivot_on) {
+        //printf("pivot is on : compute P*A = L*U \n");
+    //} else {
+        //printf("pivot is off: compute A = L*U (not numerically stable)\n");
+    //}
 
     //printf("A = (matlab base-1)\n");
     //print_matrix(m, m, A, lda);
@@ -157,11 +157,11 @@ void solveDense(double * d_A, double *  d_B, size_t m)
 
     const int pivot_on = 1;
 
-    if (pivot_on) {
-        printf("pivot is on : compute P*A = L*U \n");
-    } else {
-        printf("pivot is off: compute A = L*U (not numerically stable)\n");
-    }
+    //if (pivot_on) {
+        //printf("pivot is on : compute P*A = L*U \n");
+    //} else {
+        //printf("pivot is off: compute A = L*U (not numerically stable)\n");
+    //}
 
     //printf("A = (matlab base-1)\n");
     //print_matrix(m, m, A, lda);
