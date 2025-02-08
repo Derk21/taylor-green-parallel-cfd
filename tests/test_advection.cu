@@ -51,11 +51,12 @@ void test_interpolation(){
     double expected_v = (0.75*0.75) * 1.0 + (0.75*0.25) * 3.0 + (0.75*0.25) * 2 + (0.25*0.25) * 4;
 
     // cpu interpolation
-    interpolateVelocity(x_d,y_d,periodic_grid,velocity_grid,velocity_grid_next,n,m,dx);
+    double u_interpolated,v_interpolated;
+    interpolateVelocity(u_interpolated,v_interpolated,x_d,y_d,periodic_grid,velocity_grid,n,m,dx);
     std::cout << "velocity grid after interpolation" <<std::endl;
     //print_matrix_row_major(m,2*n,velocity_grid_next,2*n);
-    double u_interpolated = velocity_grid_next[periodic_linear_Idx(0,0,2*n,m)];
-    double v_interpolated = velocity_grid_next[periodic_linear_Idx(1,0,2*n,m)];
+    //double u_interpolated = velocity_grid_next[periodic_linear_Idx(0,0,2*n,m)];
+    //double v_interpolated = velocity_grid_next[periodic_linear_Idx(1,0,2*n,m)];
     std::cout <<"expected velocity at intepolated 1.5 point: " << expected_u << "," << expected_v << std::endl;
     std::cout <<"actual velocity at intepolated 1.5 point: " << u_interpolated << "," <<v_interpolated << std::endl;
     assert(is_close(expected_u,u_interpolated));

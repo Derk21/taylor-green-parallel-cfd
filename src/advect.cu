@@ -1,7 +1,7 @@
 #include "advect.cuh"
 #include <cassert>
 
-__host__ __device__ void interpolateVelocity(double x_d, double y_d, const double *periodic_grid, const double *velocity_grid, double * velocity_grid_next, int n, int m, const double dx)
+__host__ __device__ void interpolateVelocity(double &u, double &v,const double x_d, const double y_d, const double *periodic_grid, const double *velocity_grid, int n, int m, const double dx)
 {
     int u_i_closest, v_i_closest, y_i_closest;
     setClosestGridPointIdx(x_d, y_d, n, m, v_i_closest, y_i_closest);
@@ -16,12 +16,8 @@ __host__ __device__ void interpolateVelocity(double x_d, double y_d, const doubl
     double y_diff = (y_d - y_closest) / dx;
 
     // forward bilinear interpolation
-    double u = get_interpolated(u_i_closest,y_i_closest,x_diff,y_diff,velocity_grid,n,m);
-    double v = get_interpolated(v_i_closest,y_i_closest,x_diff,y_diff,velocity_grid,n,m);
-
-    // assign to closest grid point
-    velocity_grid_next[periodic_linear_Idx(u_i_closest, y_i_closest,2*n,m)] = u;
-    velocity_grid_next[periodic_linear_Idx(v_i_closest, y_i_closest,2*n,m)] = v;
+    u = get_interpolated(u_i_closest,y_i_closest,x_diff,y_diff,velocity_grid,n,m);
+    v = get_interpolated(v_i_closest,y_i_closest,x_diff,y_diff,velocity_grid,n,m);
 }
 
 __host__ __device__ double get_interpolated(const int &i_closest, const int & y_i_closest,const double &x_diff, const double &y_diff,const double * velocity_grid,int n, int m)
@@ -57,17 +53,34 @@ __host__ __device__ void integrateEuler(const double *velocity_grid, int &y_i, i
 
 void advectSemiLagrange(double *velocity_grid, double *velocity_grid_next, const double *periodic_grid, const double dt, int n, int m, double dx)
 {
-    int nn = 2 * n;
     for (int y_i = 0; y_i < m; y_i++)
     {
-        for (int i = 1; i < nn; i+=2)
+        for (int i = 0; i < n; i++)
         {   
-            int u_i = i-1;
-            int v_i = i;
-            double x_d, y_d;
+            int u_i = 2*i;
+            int v_i = (2*i)+1;
+            double x_d, y_d,u,v;
             //backward euler
             integrateEuler(velocity_grid,y_i, u_i,  v_i, periodic_grid, x_d, y_d,-dt,n,m);
-            interpolateVelocity(x_d, y_d, periodic_grid, velocity_grid,velocity_grid_next,n,m,dx);
+            interpolateVelocity(u,v,x_d, y_d, periodic_grid, velocity_grid,n,m,dx);
+            velocity_grid_next[periodic_linear_Idx(u_i,y_i,2*n,m)] = u;
+            velocity_grid_next[periodic_linear_Idx(v_i,y_i,2*n,m)] = v;
+
+            //clip velocity
+            //double u = velocity_grid_next[periodic_linear_Idx(u_i,y_i,2*n,m)];
+            //double min_,max_;
+            //min_max_neighbors(min_,max_,u_i,y_i,velocity_grid,n,m);
+            ////clip(u,min_,max_);
+            //clip(u,min_,2.0);
+            //velocity_grid_next[periodic_linear_Idx(u_i,y_i,2*n,m)] = u;
+
+            //double v = velocity_grid_next[periodic_linear_Idx(v_i,y_i,2*n,m)];
+            //min_max_neighbors(min_,max_,v_i,y_i,velocity_grid,n,m);
+            ////clip(v,min_,max_);
+            //clip(v,min_,2.0);
+            //velocity_grid_next[periodic_linear_Idx(v_i,y_i,2*n,m)] = v;
+            //assert(v <= 2.0);
+            //assert(u <= 2.0);
         }
     } 
     memcpy(velocity_grid, velocity_grid_next, 2 * n * m * sizeof(double));
@@ -87,13 +100,18 @@ void advectMacCormack(double *velocity_grid, double *velocity_grid_next, const d
         {   
             int u_i = 2*i;
             int v_i = (2*i)+1;
-            double x_backward_d, y_backward_d, x_forward_d, y_forward_d;
+            double x_backward_d, y_backward_d, x_forward_d, y_forward_d,u_fw,v_fw,u_bw,v_bw;
             //backward euler -dt
-            integrateEuler(velocity_grid,y_i, u_i,  v_i, periodic_grid, x_backward_d, y_backward_d,-dt,n,m);
-            interpolateVelocity(x_backward_d, y_backward_d, periodic_grid, velocity_grid,velocity_bw,n,m,dx);
+            integrateEuler(velocity_grid,y_i, u_i, v_i, periodic_grid, x_backward_d, y_backward_d,-dt,n,m);
+            interpolateVelocity(u_bw,v_bw,x_backward_d, y_backward_d, periodic_grid, velocity_grid,n,m,dx);
+            velocity_bw[periodic_linear_Idx(u_i,y_i,2*n,m)] = u_bw;
+            velocity_bw[periodic_linear_Idx(v_i,y_i,2*n,m)] = v_bw;
             //forward euler +dt
-            integrateEuler(velocity_grid,y_i, u_i,  v_i, periodic_grid, x_forward_d, y_forward_d,dt,n,m);
-            interpolateVelocity(x_forward_d, y_forward_d, periodic_grid, velocity_grid,velocity_fw,n,m,dx);
+            integrateEuler(velocity_grid,y_i, u_i, v_i, periodic_grid, x_forward_d, y_forward_d,dt,n,m);
+            interpolateVelocity(u_fw,v_fw,x_forward_d, y_forward_d, periodic_grid, velocity_grid,n,m,dx);
+            velocity_fw[periodic_linear_Idx(u_i,y_i,2*n,m)] = u_fw;
+            velocity_fw[periodic_linear_Idx(v_i,y_i,2*n,m)] = v_fw;
+
 
             double u = mac_cormack_correction(u_i,y_i,velocity_grid,velocity_bw,velocity_fw,n,m);
             velocity_grid_next[periodic_linear_Idx(u_i,y_i,2*n,m)] = u;
@@ -181,9 +199,11 @@ __global__ void integrateAndInterpolateKernel(const double *periodic_grid, const
     int v_i = (col * 2) + 1;
     if (row < m && col < n)
     {
-        double x_d, y_d; 
+        double x_d, y_d,u,v; 
         integrateEuler(velocity_grid,row,u_i,v_i,periodic_grid,x_d,y_d,dt,n,m);
-        interpolateVelocity(x_d,y_d,periodic_grid,velocity_grid_next,velocity_grid_next,n,m,dx);
+        interpolateVelocity(u,v,x_d,y_d,periodic_grid,velocity_grid,n,m,dx);
+        velocity_grid_next[periodic_linear_Idx(u_i,row,2*n,m)] = u;
+        velocity_grid_next[periodic_linear_Idx(v_i,row,2*n,m)] = v;
     }
 }
 __global__ void macCormackCorrectionKernel(double * velocity_grid, const double * velocity_grid_bw, const double* velocity_grid_fw,  int n, int m)
