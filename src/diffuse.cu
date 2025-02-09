@@ -70,7 +70,7 @@ __global__ void diffuseExplicitStep(double *velocity_grid,  const double amount,
     auto t_col = threadIdx.x + 2;
     auto t_row = threadIdx.y + 1;
 
-    const dim3 PADDED_SIZE(blockDim.x+4,blockDim.y+4);  
+    const dim3 PADDED_SIZE(blockDim.x+4,blockDim.y+2);  
     __shared__ double CURR[(TILE_SIZE*2 + 4) * (TILE_SIZE + 2)];
     __shared__ double NEXT[(TILE_SIZE*2 + 4) * (TILE_SIZE + 2)];
 

@@ -16,6 +16,7 @@ void test_divergence()
             velocity_grid[y_i * (2*n) + i] = 1.0;
         }
     }
+
     calculateDivergence(velocity_grid,divergence,n,n);
     for (int i = 0; i < n*n; i++)
     {
@@ -29,11 +30,14 @@ void test_divergence()
 
     CHECK_CUDA(cudaMemcpy(d_vel, velocity_grid,n*n*2* sizeof(double) , cudaMemcpyHostToDevice));
     //gpu test
-    dim3 blockDim(TILE_SIZE,TILE_SIZE);
-    dim3 gridDim((n+ TILE_SIZE-1)/TILE_SIZE,(n+ TILE_SIZE-1)/TILE_SIZE); 
+    dim3 blockDim(4,4);
+    dim3 gridDim((n+ blockDim.x-1)/blockDim.x,(n+ blockDim.y-1)/blockDim.y); 
     gpu::calculateDivergence<<<gridDim,blockDim>>>(d_vel,d_div,n,n,dx);
-
     CHECK_CUDA(cudaMemcpy(h_div, d_div,n*n* sizeof(double) , cudaMemcpyDeviceToHost));
+    std::cout << "CPU Divergence" << std::endl;
+    print_matrix_row_major(n,n,divergence,n);
+    std::cout << "GPU Divergence" << std::endl;
+    print_matrix_row_major(n,n,h_div,n);
     assert(all_close(h_div,divergence,n,n));
     std::cout << "CPU Divergence is identical to GPU divergence" << std::endl;
 
