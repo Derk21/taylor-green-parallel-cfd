@@ -36,7 +36,7 @@ void test_diffuseExplicitStep()
     //int y_i_half = m / 2;
     //int i_half = 2*n / 2;
     //velocity_grid[y_i_half * (2*n) + i_half] = 1.0;
-    velocity_grid[(m-1) * (2*n) + (2*(n-1))]= 1.0;
+    velocity_grid[(m-1) * (2*n) + (2*(n-1))]= 4.0;
 
     std::cout << "before diffusion:" << std::endl;
     print_matrix_row_major(m,2*n, velocity_grid,2*n);

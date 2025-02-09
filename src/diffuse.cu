@@ -67,37 +67,70 @@ __global__ void diffuseExplicitStep(double *velocity_grid,  const double amount,
 {
     int col = threadIdx.x + blockIdx.x * blockDim.x; 
     int row = threadIdx.y + blockIdx.y * blockDim.y; 
-    double tmp_u = 0.0;
-    //int u_i = col * 2;
-    //int v_i = (col * 2) + 1;
+    auto t_col = threadIdx.x + 2;
+    auto t_row = threadIdx.y + 1;
 
+    const dim3 PADDED_SIZE(blockDim.x+4,blockDim.y+4);  
+    __shared__ double CURR[(TILE_SIZE*2 + 4) * (TILE_SIZE + 2)];
+    __shared__ double NEXT[(TILE_SIZE*2 + 4) * (TILE_SIZE + 2)];
+
+    //init
     if (row < m && col < 2*n)
     {
+        if(threadIdx.x < blockDim.x && threadIdx.y < blockDim.y)
+        {
+            //fill inner
+            double temp = velocity_grid[periodic_linear_Idx(col,row,2*n,m)];
+            CURR[t_row * PADDED_SIZE.x + t_col] = temp;
+            NEXT[t_row * PADDED_SIZE.x + t_col] = temp;
 
-        double u = velocity_grid[periodic_linear_Idx(col, row,2*n,m)];
-        //double v = velocity_grid[periodic_linear_Idx(v_i, row)];
-
-        double u_left = velocity_grid[periodic_linear_Idx(col - 2, row,2*n,m)];
-        double u_right = velocity_grid[periodic_linear_Idx(col + 2, row,2*n,m)];
-        double u_up = velocity_grid[periodic_linear_Idx(col, row + 1,2*n,m)];
-        double u_down = velocity_grid[periodic_linear_Idx(col, row - 1,2*n,m)];
-
-        //double v_left = velocity_grid[periodic_linear_Idx(v_i - 2, row,2*n,m)];
-        //double v_right = velocity_grid[periodic_linear_Idx(v_i + 2, row,2*n,m)];
-        //double v_up = velocity_grid[periodic_linear_Idx(v_i, row + 1,2*n,m)];
-        //double v_down = velocity_grid[periodic_linear_Idx(v_i, row - 1,2*n,m)];
-
-        double u_diffusion = (u_right - 2 * u + u_left) / (dx * dx) + (u_up - 2 * u + u_down) / (dx * dx);
-        //double v_diffusion = (v_right - 2 * v + v_left) / (dx * dx) + (v_up - 2 * v + v_down) / (dx * dx);
-
-        tmp_u = u + amount * u_diffusion;
-        //tmp_v = v + amount * v_diffusion;
+            //boundary
+            if ( threadIdx.y == 0 ){ //top row
+                temp = velocity_grid[periodic_linear_Idx(col,row-1,2*n,m)];
+                CURR[(t_row - 1) * PADDED_SIZE.x + t_col]=temp;
+                NEXT[(t_row - 1) * PADDED_SIZE.x + t_col]=temp;
+            }
+            if (threadIdx.y == blockDim.y-1)
+            {
+                temp = velocity_grid[periodic_linear_Idx(col,row+1,2*n,m)];
+                CURR[(t_row + 1) * PADDED_SIZE.x + t_col]=temp;
+                NEXT[(t_row + 1) * PADDED_SIZE.x + t_col]=temp;
+            }
+            if (threadIdx.x <= 1) //left
+            {
+                temp = velocity_grid[periodic_linear_Idx(col-2,row,2*n,m)];
+                CURR[t_row  * PADDED_SIZE.x + (t_col-2)]=temp;
+                NEXT[t_row  * PADDED_SIZE.x + (t_col-2)]=temp;
+            }
+            if (threadIdx.x >= blockDim.x - 2) //right
+            {
+                temp = velocity_grid[periodic_linear_Idx(col+2,row,2*n,m)];
+                CURR[t_row  * PADDED_SIZE.x + (t_col+2)]=temp;
+                NEXT[t_row  * PADDED_SIZE.x + (t_col+2)]=temp;
+            }
+        }
     }
     __syncthreads();
+    //diffusion
     if (row < m && col < 2*n)
     {
-        velocity_grid[periodic_linear_Idx(col, row,2*n,m)] = tmp_u;
-        //velocity_grid[periodic_linear_Idx(v_i, row,2*n,m)] = tmp_v;
+        if (threadIdx.y < blockDim.y && threadIdx.x < blockDim.x){
+            
+            double u = CURR[t_row * PADDED_SIZE.x + t_col];
+
+            double u_left = CURR[t_row * PADDED_SIZE.x + (t_col-2)];
+            double u_right = CURR[t_row * PADDED_SIZE.x + (t_col+2)];
+            double u_up = CURR[(t_row+1) * PADDED_SIZE.x + t_col];
+            double u_down = CURR[(t_row-1) * PADDED_SIZE.x + t_col];
+
+            double u_diffusion = (u_right - 2 * u + u_left) / (dx * dx) + (u_up - 2 * u + u_down) / (dx * dx);
+            NEXT[t_row*PADDED_SIZE.x+t_col]= u + amount * u_diffusion;
+        }
+    }
+    //copy back to global memory (might move this into if condition above)
+    if (row < m && col < 2*n && (threadIdx.y < blockDim.y && threadIdx.x < blockDim.x))
+    {
+        velocity_grid[periodic_linear_Idx(col, row,2*n,m)] = NEXT[t_row*PADDED_SIZE.x + t_col];
     }
 }
 }
