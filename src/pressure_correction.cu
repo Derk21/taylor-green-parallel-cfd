@@ -62,8 +62,8 @@ void makeIncompressible(double* velocity_grid, double* d_B, double* laplace, int
 
     dim3 blockDim(TILE_SIZE,TILE_SIZE);
     dim3 gridDim((n+ TILE_SIZE-1)/TILE_SIZE,(m+ TILE_SIZE-1)/TILE_SIZE); 
-    gpu::calculateDivergence<<<gridDim,blockDim>>>(velocity_grid,d_B,n,n,dx);
-    CHECK_CUDA(cudaDeviceSynchronize());
+    gpu::calculateDivergence<<<gridDim,blockDim>>>(velocity_grid,d_B,n,m,dx);
+    //CHECK_CUDA(cudaDeviceSynchronize());
     gpu::solveDense(laplace,d_B,n*m);
 
     //TODO: parallelize u and v correction? -> don't coalesce?
@@ -132,10 +132,10 @@ __global__ void calculateDivergence(const double* velocity_grid,double*divergenc
     int col = threadIdx.x + blockIdx.x * blockDim.x; 
     int row = threadIdx.y + blockIdx.y * blockDim.y; 
 
+    int u_i = 2 * col;
+    int v_i = 2 * col + 1;
     if ((row < m) && (col < n))
     {
-        int u_i = 2 * col;
-        int v_i = 2 * col + 1;
         double u = velocity_grid[periodic_linear_Idx(u_i,row,2*n,m)];
         double v = velocity_grid[periodic_linear_Idx(v_i,row,2*n,m)];
 
@@ -152,9 +152,7 @@ __global__ void calculateDivergence(const double* velocity_grid,double*divergenc
         divergence[periodic_linear_Idx(col,row,n,m)] = div;
 
     }
-    else{
-        return;
-    }
+    //else{ return; }
 }
 }
 

@@ -211,13 +211,15 @@ void advectMacCormack(
 
     cudaStreamSynchronize(stream_backward);
     cudaStreamSynchronize(stream_forward);
+    cudaStreamDestroy(stream_forward);
+    cudaStreamDestroy(stream_backward);
     //gpu::integrateAndInterpolateKernel<<<gridDim, blockDim, 0, stream_backward>>>(
         //periodic_grid,velocity_grid,velocity_fw_bw,-dt,n,m,dx);
     gpu::interpolateKernel<<<gridDim,blockDim>>>(
         periodic_grid,velocity_bw,velocity_bw_fw,integrated_fw,n,m);
 
-    cudaStreamSynchronize(stream_forward);
-    cudaStreamSynchronize(stream_backward);
+    //cudaStreamSynchronize(stream_forward);
+    //cudaStreamSynchronize(stream_backward);
     
     //dim3 blockDimCorrection(2*TILE_SIZE,TILE_SIZE);
     //dim3 gridDimCorrection(((2*(n + TILE_SIZE)-1))/(2*TILE_SIZE),(n+ TILE_SIZE-1)/TILE_SIZE); 
