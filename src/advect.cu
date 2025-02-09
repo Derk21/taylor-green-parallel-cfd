@@ -307,7 +307,7 @@ __device__ double mac_cormack_correction(const int idx_x,const int y_i,const dou
     double min_=1e6,max_=1e-6;
     //clipping where it looks more like the simulation of phiflow, but phiflow clips with closest in velocity grid, but of backward integrated points
     gpu::min_max_neighbors(min_,max_,idx_x,y_i,velocity_grid,n,m);
-    gpu::clip(out_val,0.75*min_,2*max_);
+    gpu::clip(out_val,min_,max_);
     //phiflow clipping destroys simulation completly 
     //gpu::min_max_neighbors(min_,max_,bw_idx_x,bw_idx_y,velocity_grid,n,m);
     //gpu::clip(out_val,min_,max_);
@@ -347,7 +347,8 @@ double mac_cormack_correction(const int idx_x,const int y_i,const double * veloc
     //clipping
     double min_,max_;
     min_max_neighbors(min_,max_,idx_x,y_i,velocity_grid,n,m);
-    clip(out_val,0.75*min_,2*max_);
+    //clip(out_val,0.75*min_,2*max_);
+    clip(out_val,min_,max_);
     return out_val;
 }
 

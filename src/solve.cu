@@ -30,7 +30,7 @@ void solveDense(const double * A, const double *  B, double * X, size_t m){
     int lwork = 0;            /* size of workspace */
     double *d_work = nullptr; /* device workspace for getrf */
 
-    const int pivot_on = 1;
+    const int pivot_on = 0;
 
     //if (pivot_on) {
         //printf("pivot is on : compute P*A = L*U \n");
@@ -155,7 +155,7 @@ void solveDense(double * d_A, double *  d_B, size_t m)
     int lwork = 0;            /* size of workspace */
     double *d_work = nullptr; /* device workspace for getrf */
 
-    const int pivot_on = 1;
+    const int pivot_on = 0; //works well without in this case
 
     //if (pivot_on) {
         //printf("pivot is on : compute P*A = L*U \n");
