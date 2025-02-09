@@ -110,13 +110,15 @@ void test_MacCormackAdvection()
     print_matrix_row_major(m,2*n,velocity_grid,2*n);
     
     //cuda init
-    double *d_vel,*d_vel_fw,*d_vel_bw,*d_periodic;
+    double *d_vel,*d_vel_fw,*d_vel_bw,*d_integrated_fw,*d_integrated_bw, *d_periodic;
     double *h_vel= (double*) malloc(n*n * 2 * sizeof(double));
 
     CHECK_CUDA(cudaMalloc(&d_vel, n*n*2* sizeof(double)));
     CHECK_CUDA(cudaMalloc(&d_vel_fw, n*n*2* sizeof(double)));
     CHECK_CUDA(cudaMalloc(&d_vel_bw, n*n*2* sizeof(double)));
     CHECK_CUDA(cudaMalloc(&d_periodic, n*n*2* sizeof(double)));
+    CHECK_CUDA(cudaMalloc(&d_integrated_bw, n*n*2* sizeof(double)));
+    CHECK_CUDA(cudaMalloc(&d_integrated_fw, n*n*2* sizeof(double)));
 
     CHECK_CUDA(cudaMemcpy(d_vel, velocity_grid,n*n*2* sizeof(double) , cudaMemcpyHostToDevice));
     CHECK_CUDA(cudaMemcpy(d_vel_fw, velocity_grid,n*n*2* sizeof(double) , cudaMemcpyHostToDevice));
@@ -129,7 +131,7 @@ void test_MacCormackAdvection()
     print_matrix_row_major(m,2*n,velocity_grid,2*n);
 
     //GPU 
-    gpu::advectMacCormack(d_vel,d_vel_bw,d_vel_fw,d_periodic,TIMESTEP,n,m,dx);
+    gpu::advectMacCormack(d_vel,d_vel_bw,d_vel_fw,d_integrated_bw,d_integrated_fw,d_periodic,TIMESTEP,n,m,dx);
     CHECK_CUDA(cudaMemcpy(h_vel, d_vel,n*n*2* sizeof(double) , cudaMemcpyDeviceToHost));
     std::cout << "velocity grid after advection GPU" <<std::endl;
     print_matrix_row_major(m,2*n,h_vel,2*n);
@@ -143,6 +145,8 @@ void test_MacCormackAdvection()
     CHECK_CUDA(cudaFree(d_vel));
     CHECK_CUDA(cudaFree(d_vel_fw));
     CHECK_CUDA(cudaFree(d_vel_bw));
+    CHECK_CUDA(cudaFree(d_integrated_fw));
+    CHECK_CUDA(cudaFree(d_integrated_bw));
     free(h_vel);
     free(periodic_grid);
     free(velocity_grid);

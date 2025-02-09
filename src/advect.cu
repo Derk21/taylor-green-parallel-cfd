@@ -88,7 +88,7 @@ void advectSemiLagrange(double *velocity_grid, double *velocity_grid_next, const
 
 void advectMacCormack(double *velocity_grid, double *velocity_grid_next, const double *periodic_grid, const double dt, const int n, const int m,const double dx)
 {
-    double *velocity_fw = (double *)malloc(n * m * 2 * sizeof(double));
+    double *velocity_bw_fw = (double *)malloc(n * m * 2 * sizeof(double));
     //memcpy(velocity_fw,velocity_grid, 2*n*m*sizeof(double));
 
     double *velocity_bw= (double *)malloc(n * m * 2 * sizeof(double));
@@ -131,14 +131,14 @@ void advectMacCormack(double *velocity_grid, double *velocity_grid_next, const d
             double u_bw_fw = velocity_bw[periodic_linear_Idx(u_i,y_i,2*n,m)];
             double v_bw_fw = velocity_bw[periodic_linear_Idx(v_i,y_i,2*n,m)];
             interpolateVelocity(u_bw_fw,v_bw_fw,x_forward_d, y_forward_d, periodic_grid, velocity_grid,n,m,dx);
-            velocity_fw[periodic_linear_Idx(u_i,y_i,2*n,m)] = u_bw_fw;
-            velocity_fw[periodic_linear_Idx(v_i,y_i,2*n,m)] = v_bw_fw;
+            velocity_bw_fw[periodic_linear_Idx(u_i,y_i,2*n,m)] = u_bw_fw;
+            velocity_bw_fw[periodic_linear_Idx(v_i,y_i,2*n,m)] = v_bw_fw;
 
 
-            double u = mac_cormack_correction(u_i,y_i,velocity_grid,velocity_bw,velocity_fw,n,m);
+            double u = mac_cormack_correction(u_i,y_i,velocity_grid,velocity_bw,velocity_bw_fw,n,m);
             velocity_grid_next[periodic_linear_Idx(u_i,y_i,2*n,m)] = u;
 
-            double v = mac_cormack_correction(v_i,y_i,velocity_grid,velocity_bw,velocity_fw,n,m);
+            double v = mac_cormack_correction(v_i,y_i,velocity_grid,velocity_bw,velocity_bw_fw,n,m);
             velocity_grid_next[periodic_linear_Idx(v_i,y_i,2*n,m)] = v;
 
             //if(v_i ==7 && y_i == 0){
@@ -162,7 +162,7 @@ void advectMacCormack(double *velocity_grid, double *velocity_grid_next, const d
     //print_matrix_row_major(m,2*n,velocity_grid_update,2*n);
     //free(integrated_bw);
     free(integrated_fw);
-    free(velocity_fw);
+    free(velocity_bw_fw);
     free(velocity_bw);
 }
 
@@ -186,8 +186,8 @@ void advectSemiLagrange(
 
 void advectMacCormack(
     double *velocity_grid,
-    double *velocity_fw_bw, 
-    double *velocity_fw,
+    double *velocity_bw, 
+    double *velocity_bw_fw,
     double *integrated_fw,
     double *integrated_bw, 
     const double *periodic_grid, 
@@ -204,7 +204,7 @@ void advectMacCormack(
         periodic_grid,velocity_grid,integrated_bw,-dt,n,m);
 
     gpu::interpolateKernel<<<gridDim, blockDim,0,stream_backward>>>(
-        periodic_grid,velocity_grid,velocity_fw,integrated_bw,n,m,dx);
+        periodic_grid,velocity_grid,velocity_bw,integrated_bw,n,m,dx);
 
     gpu::integrateKernel<<<gridDim,blockDim,0,stream_forward>>>(
         periodic_grid,velocity_grid,integrated_fw,dt,n,m);
@@ -214,7 +214,7 @@ void advectMacCormack(
     //gpu::integrateAndInterpolateKernel<<<gridDim, blockDim, 0, stream_backward>>>(
         //periodic_grid,velocity_grid,velocity_fw_bw,-dt,n,m,dx);
     gpu::interpolateKernel<<<gridDim,blockDim>>>(
-        periodic_grid,velocity_fw,velocity_fw_bw,integrated_bw,n,m);
+        periodic_grid,velocity_bw,velocity_bw_fw,integrated_fw,n,m);
 
     cudaStreamSynchronize(stream_forward);
     cudaStreamSynchronize(stream_backward);
@@ -224,7 +224,7 @@ void advectMacCormack(
     dim3 blockDimCorrection(TILE_SIZE,TILE_SIZE);
     dim3 gridDimCorrection((n+ TILE_SIZE-1)/TILE_SIZE,(n+ TILE_SIZE-1)/TILE_SIZE); 
     gpu::macCormackCorrectionKernel<<<gridDimCorrection,blockDimCorrection>>>(
-        velocity_grid,velocity_fw_bw,velocity_fw,n,m);
+        velocity_grid,velocity_bw,velocity_bw_fw,n,m);
 }
 
 __global__ void integrateKernel(const double *periodic_grid, const double *velocity_grid, double * integrated,const double dt,const int n, const int m)
@@ -276,7 +276,7 @@ __global__ void integrateAndInterpolateKernel(const double *periodic_grid, const
         velocity_grid_next[periodic_linear_Idx(v_i,row,2*n,m)] = v;
     }
 }
-__global__ void macCormackCorrectionKernel(double * velocity_grid, const double * velocity_grid_bw, const double* velocity_grid_fw,  int n, int m)
+__global__ void macCormackCorrectionKernel(double * velocity_grid, const double * velocity_grid_bw, const double* velocity_grid_bw_fw,  int n, int m)
 {
     int col = threadIdx.x + blockIdx.x * blockDim.x; 
     int row = threadIdx.y + blockIdx.y * blockDim.y; 
@@ -285,8 +285,8 @@ __global__ void macCormackCorrectionKernel(double * velocity_grid, const double 
     double u,v = 0;
     if (row < m && col < n)
     {
-        u = gpu::mac_cormack_correction(u_i,row,velocity_grid,velocity_grid_bw,velocity_grid_fw,n,m);
-        v = gpu::mac_cormack_correction(v_i,row,velocity_grid,velocity_grid_bw,velocity_grid_fw,n,m);
+        u = gpu::mac_cormack_correction(u_i,row,velocity_grid,velocity_grid_bw,velocity_grid_bw_fw,n,m);
+        v = gpu::mac_cormack_correction(v_i,row,velocity_grid,velocity_grid_bw,velocity_grid_bw_fw,n,m);
     }
     __syncthreads(); 
     if (row < m && col < n){
@@ -295,13 +295,13 @@ __global__ void macCormackCorrectionKernel(double * velocity_grid, const double 
     }
 }
 
-__device__ double mac_cormack_correction(const int idx_x,const int y_i,const double * velocity_grid, const double * velocity_grid_bw, const double* velocity_grid_fw,  int n, int m)
+__device__ double mac_cormack_correction(const int idx_x,const int y_i,const double * velocity_grid, const double * velocity_grid_bw, const double* velocity_grid_bw_fw,  int n, int m)
 {
     double bw = velocity_grid_bw[periodic_linear_Idx(idx_x,y_i,2*n,m)];
-    double fw = velocity_grid_fw[periodic_linear_Idx(idx_x,y_i,2*n,m)];
+    double bw_fw = velocity_grid_bw_fw[periodic_linear_Idx(idx_x,y_i,2*n,m)];
     double field = velocity_grid[periodic_linear_Idx(idx_x,y_i,2*n,m)];
     //double out_val = 0.5 * (bw + fw); // temporal average
-    double out_val = fw + MACCORMACK_CORRECTION * 0.5 * (field - bw); //like in PHIflow, but clashes with wikipedia-definition
+    double out_val = bw + MACCORMACK_CORRECTION * 0.5 * (field - bw_fw); //like in PHIflow, but clashes with wikipedia-definition
     double min_=1e6,max_=1e-6;
     //clipping where it looks more like the simulation of phiflow, but phiflow clips with closest in velocity grid, but of backward integrated points
     gpu::min_max_neighbors(min_,max_,idx_x,y_i,velocity_grid,n,m);
@@ -342,11 +342,10 @@ double mac_cormack_correction(const int idx_x,const int y_i,const double * veloc
     double field = velocity_grid[periodic_linear_Idx(idx_x,y_i,2*n,m)];
     //double out_val = 0.5 * (bw + fw); // temporal average
     double out_val = bw + MACCORMACK_CORRECTION * 0.5 * (field - fw);//like in PHIflow, but clashes with wikipedia-definition
-    //double min_,max_;
     //clipping
-    //double x_d = points_bw[periodic_linear_Idx(idx_x,y_i,2*n,m)];
-    //min_max_neighbors(min_,max_,idx_x,y_i,velocity_grid_fw,n,m);
-    //clip(out_val,min_,max_);
+    double min_,max_;
+    min_max_neighbors(min_,max_,idx_x,y_i,velocity_grid,n,m);
+    clip(out_val,0.75*min_,2*max_);
     return out_val;
 }
 
