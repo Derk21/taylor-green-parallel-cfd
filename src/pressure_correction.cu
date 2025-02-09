@@ -136,7 +136,8 @@ __global__ void calculateDivergence(const double* velocity_grid,double*divergenc
 
     //int u_i = 2 * col;
     //int v_i = 2 * col + 1;
-    const dim3 PADDED_SIZE(TILE_SIZE+2,TILE_SIZE+2);  
+    //const dim3 PADDED_SIZE(TILE_SIZE+2,TILE_SIZE+2);  
+    const int PADDED_SIZE = TILE_SIZE +2;
     __shared__ double2 VEL[(TILE_SIZE + 2) * (TILE_SIZE + 2)];
     //__shared__ double DIV[(TILE_SIZE) * (TILE_SIZE)];
     auto t_col = threadIdx.x + 1;
@@ -151,32 +152,32 @@ __global__ void calculateDivergence(const double* velocity_grid,double*divergenc
             double2 temp;
             temp.x = velocity_grid[periodic_linear_Idx(t_u_i,row,2*n,m)];
             temp.y = velocity_grid[periodic_linear_Idx(t_v_i,row,2*n,m)];
-            VEL[t_row * PADDED_SIZE.x + t_col] = temp;
+            VEL[t_row * PADDED_SIZE + t_col] = temp;
 
             //boundary
             if ( threadIdx.y == 0 ){ //top row
                 temp.x = velocity_grid[periodic_linear_Idx(t_u_i,row-1,2*n,m)];
                 temp.y = velocity_grid[periodic_linear_Idx(t_v_i,row-1,2*n,m)];
-                VEL[(t_row - 1) * PADDED_SIZE.x + t_col] = temp;
+                VEL[(t_row - 1) * PADDED_SIZE + t_col] = temp;
                 //printf("Shared v_up : %f\n", temp.y);
             }
             if (threadIdx.y == blockDim.y-1)
             {
                 temp.x = velocity_grid[periodic_linear_Idx(t_u_i,row+1,2*n,m)];
                 temp.y = velocity_grid[periodic_linear_Idx(t_v_i,row+1,2*n,m)];
-                VEL[(t_row + 1) * PADDED_SIZE.x + t_col]=temp;
+                VEL[(t_row + 1) * PADDED_SIZE + t_col]=temp;
             }
             if (threadIdx.x == 0) //left
             {
                 temp.x = velocity_grid[periodic_linear_Idx(t_u_i-2,row,2*n,m)];
                 temp.y = velocity_grid[periodic_linear_Idx(t_v_i-2,row,2*n,m)];
-                VEL[t_row  * PADDED_SIZE.x + (t_col-1)]=temp;
+                VEL[t_row  * PADDED_SIZE + (t_col-1)]=temp;
             }
             if (threadIdx.x == blockDim.x-1 ) //right
             {
                 temp.x = velocity_grid[periodic_linear_Idx(t_u_i+2,row,2*n,m)];
                 temp.y = velocity_grid[periodic_linear_Idx(t_v_i+2,row,2*n,m)];
-                VEL[t_row  * PADDED_SIZE.x + (t_col+1)]=temp;
+                VEL[t_row  * PADDED_SIZE + (t_col+1)]=temp;
             }
         }
     }
@@ -185,19 +186,18 @@ __global__ void calculateDivergence(const double* velocity_grid,double*divergenc
     if ((row < m) && (col < n))
     {
         if (threadIdx.y < blockDim.y && threadIdx.x < blockDim.x){
-            //double u = VEL[t_row * PADDED_SIZE.x + t_col].x;
-            //double v = VEL[t_row * PADDED_SIZE.x + t_col].y;
 
-            double u_left = VEL[t_row * PADDED_SIZE.x + t_col-1].x;
-            double u_right= VEL[t_row * PADDED_SIZE.x + t_col+1].x;
-
-            double v_down = VEL[(t_row+1) * PADDED_SIZE.x + t_col].y;
-            double v_up = VEL[(t_row-1) * PADDED_SIZE.x + t_col].y;
+            double2 left = VEL[t_row * PADDED_SIZE + t_col-1];
+            double2 right = VEL[t_row * PADDED_SIZE + t_col-1];
+            
+            double2 down = VEL[(t_row+1) * PADDED_SIZE + t_col];
+            double2 up = VEL[(t_row-1) * PADDED_SIZE + t_col];
             //central differences
-            double div = (u_right - u_left) / (2 * dx) + (v_down - v_up) / (2 * dx);
+             
             //backward differences
             //double div = (u - u_left) / dx + (v - v_down) / dy;
-            divergence[periodic_linear_Idx(col,row,n,m)] = div;
+            divergence[periodic_linear_Idx(col,row,n,m)] = 
+                (right.x- left.x) / (2 * dx) + (down.y- up.y) / (2 * dx);
             //divergence[periodic_linear_Idx(col,row,n,m)] = VEL[(t_row+1) * PADDED_SIZE.x + t_col].y;
 
         }

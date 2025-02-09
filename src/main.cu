@@ -145,7 +145,7 @@ int main()
             diffuseExplicit(velocity_grid,velocity_grid_next);
             //advectSemiLagrange(velocity_grid,velocity_grid_next,periodic_grid,TIMESTEP);
             advectMacCormack(velocity_grid,velocity_grid_next,periodic_grid,TIMESTEP);
-            //makeIncompressible(velocity_grid,divergence,pressure);
+            makeIncompressible(velocity_grid,divergence,pressure);
 
             //taylorGreenGroundTruth(periodic_grid,velocity_grid_next,i,NUM_N,M);
             //std::swap(velocity_grid,velocity_grid_next);
