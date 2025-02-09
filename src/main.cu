@@ -71,8 +71,8 @@ int main()
 
         CHECK_CUDA(cudaMemcpy(d_periodic_grid,periodic_grid,NUM_N*M*2*sizeof(double),cudaMemcpyHostToDevice));
         CHECK_CUDA(cudaMemcpy(d_vel,velocity_grid,NUM_N*M*2*sizeof(double),cudaMemcpyHostToDevice));
-        CHECK_CUDA(cudaMemcpy(d_vel_A,velocity_grid_next,NUM_N*M*2*sizeof(double),cudaMemcpyHostToDevice));
-        CHECK_CUDA(cudaMemcpy(d_vel_B,velocity_grid_next,NUM_N*M*2*sizeof(double),cudaMemcpyHostToDevice));
+        CHECK_CUDA(cudaMemcpy(d_vel_A,velocity_grid,NUM_N*M*2*sizeof(double),cudaMemcpyHostToDevice));
+        CHECK_CUDA(cudaMemcpy(d_vel_B,velocity_grid,NUM_N*M*2*sizeof(double),cudaMemcpyHostToDevice));
 
         CHECK_CUDA(cudaMemset(d_divergence,0,NUM_N * M * sizeof(double)))
 
@@ -81,9 +81,10 @@ int main()
 
         for (int i = 1; i < ITERATIONS+1; i++){
             gpu::diffuseExplicit(d_vel);
-            //gpu::advectSemiLagrange(d_vel,d_vel_A,d_periodic_grid);
-            gpu::advectMacCormack(d_vel,d_vel_A,d_vel_B,d_integrated_fw,d_integrated_bw,d_periodic_grid);
-            //gpu::makeIncompressible(velocity_grid,d_divergence,d_laplace);
+            gpu::advectSemiLagrange(d_vel,d_vel_A,d_periodic_grid);
+            //gpu::advectMacCormack(d_vel,d_vel_A,d_vel_B,d_integrated_fw,d_integrated_bw,d_periodic_grid);
+            //gpu::makeIncompressible(d_vel_A,d_divergence,d_laplace);
+            gpu::makeIncompressible(d_vel,d_divergence,d_laplace);
 
             //copy result to buffer
             int buffer_index = (i - 1) % BUFFER_SIZE;  
@@ -120,9 +121,13 @@ int main()
         std::chrono::duration<double> gpu_seconds = end_gpu - start_gpu;
         std::cout << "gpu time: " << gpu_seconds.count() << "s" <<std::endl;
         free(h_velocity_buffer);
+        CHECK_CUDA(cudaFree(d_integrated_bw));
+        CHECK_CUDA(cudaFree(d_integrated_fw));
+        CHECK_CUDA(cudaFree(d_velocity_buffer));
         CHECK_CUDA(cudaFree(d_periodic_grid));
         CHECK_CUDA(cudaFree(d_vel));
         CHECK_CUDA(cudaFree(d_vel_A));
+        CHECK_CUDA(cudaFree(d_vel_B));
         CHECK_CUDA(cudaFree(d_laplace));
         CHECK_CUDA(cudaFree(d_divergence));
     }
@@ -137,7 +142,7 @@ int main()
 
         auto start_cpu = std::chrono::system_clock::now();
         for (int i = 1; i < ITERATIONS+1; i++){
-            //diffuseExplicit(velocity_grid,velocity_grid_next);
+            diffuseExplicit(velocity_grid,velocity_grid_next);
             //advectSemiLagrange(velocity_grid,velocity_grid_next,periodic_grid,TIMESTEP);
             advectMacCormack(velocity_grid,velocity_grid_next,periodic_grid,TIMESTEP);
             //makeIncompressible(velocity_grid,divergence,pressure);

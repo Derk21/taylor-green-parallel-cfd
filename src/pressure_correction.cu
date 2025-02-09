@@ -63,7 +63,7 @@ void makeIncompressible(double* velocity_grid, double* d_B, double* laplace, int
     dim3 blockDim(TILE_SIZE,TILE_SIZE);
     dim3 gridDim((n+ TILE_SIZE-1)/TILE_SIZE,(m+ TILE_SIZE-1)/TILE_SIZE); 
     gpu::calculateDivergence<<<gridDim,blockDim>>>(velocity_grid,d_B,n,m,dx);
-    //CHECK_CUDA(cudaDeviceSynchronize());
+    CHECK_CUDA(cudaDeviceSynchronize());
     gpu::solveDense(laplace,d_B,n*m);
 
     //TODO: parallelize u and v correction? -> don't coalesce?
