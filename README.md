@@ -1,10 +1,9 @@
 # Tailor Green Vortex 
  University Project for GPU Computing class at TU Berlin
 - Development of a parallelized fluid simulation (diffusion, advection, pressure correction)
-- Currently working on cpu-implementation to verify before parallelizing
 
-## Current state of simulation on cpu:
-(explicit diffusion, mac_cormack advection, pressure correction)
+## Current state of simulation:
+(gpu: explicit diffusion + pressure correction, advection methods are currently wrong)
 
 <table>
   <tr>
@@ -13,7 +12,7 @@
   </tr>
   <tr>
     <td>
-      <img src="progress_documentation/mac_cormack_advection.gif" alt="Simulation" width="100%"/>
+      <img src="progress_documentation/gpu_diffusion_pressure_correction.gif" alt="Simulation" width="100%"/>
     </td>
     <td>
       <img src="progress_documentation/ground_truth.gif" alt="Analytical Solution" width="100%"/>
@@ -27,19 +26,15 @@
 - gnuplot-iostream-dev
 
 ## Features:
-### GPU:
-- in development
-
-### CPU:
 Diffusion:
 - explicit
 
 Advection:
 - semi-lagrangian (very unstable for taylor-green)
-- mac cormack 
+- mac cormack
 
 Pressure Correction:
-- partly with CUDA-solver
+- Dense CUDA-solver  (could be done with cuSparse)
 
 
 # References

@@ -81,9 +81,8 @@ int main()
 
         for (int i = 1; i < ITERATIONS+1; i++){
             gpu::diffuseExplicit(d_vel);
-            gpu::advectSemiLagrange(d_vel,d_vel_A,d_periodic_grid);
+            //gpu::advectSemiLagrange(d_vel,d_vel_A,d_periodic_grid);
             //gpu::advectMacCormack(d_vel,d_vel_A,d_vel_B,d_integrated_fw,d_integrated_bw,d_periodic_grid);
-            //gpu::makeIncompressible(d_vel_A,d_divergence,d_laplace);
             gpu::makeIncompressible(d_vel,d_divergence,d_laplace);
 
             //copy result to buffer
