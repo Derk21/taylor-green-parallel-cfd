@@ -10,3 +10,4 @@ CMakeFiles
 Makefile
 bin/*
 CMakeCache.txt
+*.ncu-rep
