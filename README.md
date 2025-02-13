@@ -24,6 +24,16 @@
 # Requirements
 - cuda
 - gnuplot-iostream-dev
+- might need to add your cuda architecture to [CMakeLists.txt](CMakeLists.txt)
+
+# Running the simulation
+```
+make main && ./bin/main
+```
+run tests like this:
+```
+make test_diffusion && ./bin/diffusion
+```
 
 ## Features:
 Diffusion:
@@ -34,7 +44,19 @@ Advection:
 - mac cormack
 
 Pressure Correction:
-- Dense CUDA-solver  (could be done with cuSparse)
+- with Dense CUDA-solver  
+- with Sparse CUDA-solver (~5 times faster than dense)
+# Practices used from the course
+- shared memory (used in divergence, interpolation and diffusion)
+- coalescing (only in parts (divergence and interpolation use it partly in shared memory))
+- biggest speedup came from implementation of sparse pressure correction (~5x faster)
+- optimization of launch configurations 
+
+# Issues
+- advection looks wrong and gpu-cpu implementation of mac-cormack have different results
+- lacking coalsescing in global memory (velocity is stored in alternating u,v,u,v ... format instead of in double2)
+
+
 
 
 # References
