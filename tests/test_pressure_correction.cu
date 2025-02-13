@@ -229,6 +229,37 @@ void test_laplace()
     constructLaplaceSparseCSR(values,row_offsets,col_indices,n,dx);
 
     printCSR(row_offsets,col_indices,values,n*n);
+
+    //SPARSE GPU
+    double *h_values= (double*)malloc(5*n*n*sizeof(double));
+    int *h_columns= (int*)malloc(5*n*n*sizeof(int));
+    int *h_row_offsets = (int*)malloc((n*n+1)*sizeof(int));
+
+    double * d_values;
+    int* d_columns, *d_row_offsets;
+    int nnz= 5*n*n;
+    CHECK_CUDA(cudaMalloc(&d_values,nnz*sizeof(double)));
+    CHECK_CUDA(cudaMalloc(&d_columns,nnz*sizeof(int)));
+    CHECK_CUDA(cudaMalloc(&d_row_offsets,(n*n+1)*sizeof(int)));
+
+    int numThreads = 16; 
+    int numBlocks = (nnz+ numThreads - 1) / numThreads;
+    gpu::constructLaplaceSparseCSR<<<numThreads,numBlocks>>>(d_values,d_row_offsets,d_columns,n,dx); 
+
+    CHECK_CUDA(cudaMemcpy(h_values, d_values, nnz * sizeof(double), cudaMemcpyDeviceToHost));
+    CHECK_CUDA(cudaMemcpy(h_columns, d_columns, nnz * sizeof(int), cudaMemcpyDeviceToHost));
+    CHECK_CUDA(cudaMemcpy(h_row_offsets, d_row_offsets, (n*n+1) * sizeof(int), cudaMemcpyDeviceToHost));
+
+    std::cout << "sparse Laplacian gpu" << std::endl;
+    printCSR(h_row_offsets,h_columns,h_values,n*n);
+
+    CHECK_CUDA(cudaFree(d_values));
+    CHECK_CUDA(cudaFree(d_columns));
+    CHECK_CUDA(cudaFree(d_row_offsets));
+
+    free(h_values);
+    free(h_columns);
+    free(h_row_offsets);
     
     free(values);
     free(col_indices);

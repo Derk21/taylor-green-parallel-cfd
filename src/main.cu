@@ -51,7 +51,7 @@ int main()
     plotVelocityGrid(periodic_grid, velocity_grid, NUM_N, M, PERIODIC_START, PERIODIC_END,plot_name, dirName);
 
     if (GPU){
-        double * d_periodic_grid,* d_vel, * d_vel_A,*d_vel_B, *d_laplace,*d_divergence,*d_integrated_bw,*d_integrated_fw;
+        double * d_periodic_grid,* d_vel, * d_vel_A,*d_vel_B, *d_divergence,*d_integrated_bw,*d_integrated_fw;
         //TODO:replace with a buffer instead
         double * h_velocity_buffer = (double*)malloc( BUFFER_SIZE * NUM_N * M * 2 * sizeof(double));
         double * d_velocity_buffer;
@@ -65,9 +65,22 @@ int main()
         //for maccormack
         CHECK_CUDA(cudaMalloc(&d_integrated_bw, NUM_N * M * 2 * sizeof(double)));
         CHECK_CUDA(cudaMalloc(&d_integrated_fw, NUM_N * M * 2 * sizeof(double)));
-
-        CHECK_CUDA(cudaMalloc(&d_laplace, NUM_N * M * NUM_N * M * sizeof(double)));
+        //pressure correction
+        double *d_laplace,*d_pressure;
+        int *d_lp_cols,*d_lp_row_offsets;
+        int nnz= 5*NUM_N*M;
         CHECK_CUDA(cudaMalloc(&d_divergence, NUM_N * M * sizeof(double)));
+        if (SPARSE){
+            CHECK_CUDA(cudaMalloc(&d_pressure,NUM_N*M*sizeof(double)));
+            CHECK_CUDA(cudaMalloc(&d_laplace,nnz*sizeof(double)));
+            CHECK_CUDA(cudaMalloc(&d_lp_cols,nnz*sizeof(int)));
+            CHECK_CUDA(cudaMalloc(&d_lp_row_offsets,(NUM_N*M+1)*sizeof(int)));
+
+            CHECK_CUDA(cudaMemcpy(d_pressure,pressure,NUM_N*M*sizeof(double),cudaMemcpyHostToDevice));
+        }
+        else{
+            CHECK_CUDA(cudaMalloc(&d_laplace, NUM_N * M * NUM_N * M * sizeof(double)));
+        }
 
         CHECK_CUDA(cudaMemcpy(d_periodic_grid,periodic_grid,NUM_N*M*2*sizeof(double),cudaMemcpyHostToDevice));
         CHECK_CUDA(cudaMemcpy(d_vel,velocity_grid,NUM_N*M*2*sizeof(double),cudaMemcpyHostToDevice));
@@ -77,13 +90,26 @@ int main()
         CHECK_CUDA(cudaMemset(d_divergence,0,NUM_N * M * sizeof(double)))
 
         auto start_gpu = std::chrono::system_clock::now();
-        gpu::constructDiscretizedLaplacian(d_laplace);
+        if(SPARSE){
+            int blockDim = TILE_SIZE*TILE_SIZE; 
+            int gridDim = (nnz+ blockDim - 1) / blockDim;
+            gpu::constructLaplaceSparseCSR<<<gridDim,blockDim>>>(d_laplace,d_lp_row_offsets,d_lp_cols); 
+            
+        }
+        else{
+            gpu::constructDiscretizedLaplacian(d_laplace);
+        }
 
         for (int i = 1; i < ITERATIONS+1; i++){
             gpu::diffuseExplicit(d_vel);
             //gpu::advectSemiLagrange(d_vel,d_vel_A,d_periodic_grid);
             //gpu::advectMacCormack(d_vel,d_vel_A,d_vel_B,d_integrated_fw,d_integrated_bw,d_periodic_grid);
-            gpu::makeIncompressible(d_vel,d_divergence,d_laplace);
+            if (SPARSE){
+                gpu::makeIncompressibleSparse(d_vel,d_divergence,d_pressure,d_laplace,d_lp_cols,d_lp_row_offsets);
+            }
+            else{
+                gpu::makeIncompressible(d_vel,d_divergence,d_laplace);
+            }
 
             //copy result to buffer
             int buffer_index = (i - 1) % BUFFER_SIZE;  
@@ -129,6 +155,13 @@ int main()
         CHECK_CUDA(cudaFree(d_vel_B));
         CHECK_CUDA(cudaFree(d_laplace));
         CHECK_CUDA(cudaFree(d_divergence));
+        if (SPARSE)
+        {
+            CHECK_CUDA(cudaFree(d_lp_row_offsets));
+            CHECK_CUDA(cudaFree(d_lp_cols));
+            CHECK_CUDA(cudaFree(d_pressure));
+        }
+
     }
 
     

@@ -55,6 +55,23 @@ void correct_velocity(double * velocity_grid,double * pressure,int n, int m, dou
 
 namespace gpu 
 {
+void makeIncompressibleSparse(double* velocity_grid, double* divergence, double* pressure, double* lp_values,int* lp_columns,int* lp_row_offsets , int n, int m,double dx)
+{
+
+    dim3 blockDim(TILE_SIZE,TILE_SIZE);
+    dim3 gridDim((n+ TILE_SIZE-1)/TILE_SIZE,(m+ TILE_SIZE-1)/TILE_SIZE); 
+    //gpu::calculateDivergence<<<gridDim,blockDim>>>(velocity_grid,divergence,n,m,dx);
+    //CHECK_CUDA(cudaDeviceSynchronize());
+
+    gpu::solveSparse(lp_values,lp_columns,lp_row_offsets,divergence,pressure,5*n*m,n*m);
+    CHECK_CUDA(cudaDeviceSynchronize());
+
+    //TODO: parallelize u and v correction? 
+    dim3 gridDimVel((n + TILE_SIZE-1)/TILE_SIZE,(m + TILE_SIZE-1)/TILE_SIZE); 
+    gpu::correct_velocity<<<gridDimVel,blockDim>>>(velocity_grid,pressure,n,m,dx);
+}
+
+
 
 void makeIncompressible(double* velocity_grid, double* d_B, double* laplace, int n, int m,double dx)
 {
@@ -67,8 +84,9 @@ void makeIncompressible(double* velocity_grid, double* d_B, double* laplace, int
 
     //laplace only stays constant if no pivot is used!
     gpu::solveDense(laplace,d_B,n*m);
+    CHECK_CUDA(cudaDeviceSynchronize());
 
-    //TODO: parallelize u and v correction? -> don't coalesce?
+    //TODO: parallelize u and v correction? 
     dim3 gridDimVel((n + TILE_SIZE-1)/TILE_SIZE,(m + TILE_SIZE-1)/TILE_SIZE); 
     gpu::correct_velocity<<<gridDimVel,blockDim>>>(velocity_grid,d_B,n,m,dx);
 }
@@ -202,7 +220,6 @@ __global__ void calculateDivergence(const double* velocity_grid,double*divergenc
 
         }
     }
-    //else{ return; }
 }
 }
 
@@ -278,6 +295,51 @@ void constructLaplaceSparseCSR(double* values, int* row_offsets,int* col_indices
 }
 
 namespace gpu {
+
+__global__ void constructLaplaceSparseCSR(double* values, int* row_offsets,int* col_indices,const int n, const double dx)
+{
+    int global_idx = blockIdx.x * blockDim.x + threadIdx.x;
+    int total_nnz = 5 * n * n;//only threads for non-zeros
+    if (global_idx < total_nnz){
+
+        double diag_value = 4.0 / (dx * dx);
+        double neighbor_value = -1.0 / (dx * dx);
+
+        int row = global_idx / 5;
+        int local_idx = global_idx % 5; //per row (0-4)
+
+        int src_x = row % n;
+        int src_y = row / n;
+
+        // row_offsets only for the first thread in each row
+        if (local_idx == 0 && row == 0) row_offsets[0] = 0;
+        if (local_idx == 0) row_offsets[row + 1] = global_idx + 5;
+
+        switch (local_idx) {
+            case 0:
+                values[global_idx] = diag_value;
+                col_indices[global_idx] = row;
+                break;
+            case 1://up
+                values[global_idx] = neighbor_value;
+                col_indices[global_idx] = periodic_linear_Idx(src_x, src_y - 1, n, n);
+                break;
+            case 2://down
+                values[global_idx] = neighbor_value;
+                col_indices[global_idx] = periodic_linear_Idx(src_x, src_y + 1, n, n);
+                break;
+            case 3://left
+                values[global_idx] = neighbor_value;
+                col_indices[global_idx] = periodic_linear_Idx(src_x - 1, src_y, n, n);
+                break;
+            case 4://right
+                values[global_idx] = neighbor_value;
+                col_indices[global_idx] = periodic_linear_Idx(src_x + 1, src_y, n, n);
+                break;
+        } 
+    } 
+}
+
 __global__  void fillLaplaceValues(double* laplace_discrete, int n, const double dx)
 {
     /*CAUTION: expects 0 inititilized laplace_discrete*/

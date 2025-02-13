@@ -4,13 +4,14 @@
 // Performance Optimizing Parameters
     #define GPU true
     #define CPU false
-    #define BUFFER_SIZE 10 // number of simulation steps before copy to host
+    #define SPARSE true
+    #define BUFFER_SIZE 20 // number of simulation steps before copy to host
     #define TILE_SIZE 16
     //TILING etc
 //Simulation
     #define NUM_N 64              // Grid size X
     #define M 64              // Grid size Y
-    #define ITERATIONS 60    // Number of iterations
+    #define ITERATIONS 60 //60   // Number of iterations
     #define PERIODIC_START 0.0
     #define PERIODIC_END (2 * M_PI)
     #define DIFFUSIVITY 0.1
