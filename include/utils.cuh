@@ -26,9 +26,22 @@
         }                                                                                          \
     } while (0)
 
+//adapted from https://github.com/NVIDIA/CUDALibrarySamples/blob/master/cuSPARSE/sparse2dense_csr/sparse2dense_csr_example.c
+#define CHECK_CUSPARSE(func)                                                   \
+{                                                                              \
+    cusparseStatus_t status = (func);                                          \
+    if (status != CUSPARSE_STATUS_SUCCESS) {                                   \
+        printf("CUSPARSE API failed at line %d with error: %s (%d)\n",         \
+               __LINE__, cusparseGetErrorString(status), status);              \
+        exit(EXIT_FAILURE);                                                   \
+    }                                                                          \
+}
+
 void print_matrix(const int &m, const int &n, const double *A, const int &lda);
 
 void print_matrix_row_major(const int &m, const int &n, const double *A, const int &lda); 
+
+void printCSR(const int* row_offsets, const int* col_indices, const double* values, int n);
 
 __host__ __device__ size_t periodic_linear_Idx(const int &x, const int &y, const int bound_x = 2*NUM_N, const int bound_y = M);
 

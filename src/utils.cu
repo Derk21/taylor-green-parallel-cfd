@@ -20,6 +20,26 @@ void print_matrix(const int &m, const int &n, const double *A, const int &lda) {
     }
 }
 
+void printCSR(const int* row_offsets, const int* col_indices, const double* values, int n) {
+    for (int row = 0; row < n ; row++) {  
+        for (int col = 0; col < n ; col++) {//iterate through virtual matrix
+            bool found = false;
+            for (int idx = row_offsets[row]; idx < row_offsets[row + 1]; idx++) {
+                //iterate through possible column idx
+                if (col_indices[idx] == col) {
+                    std::printf("%0.2f ", values[idx]);  
+                    found = true;
+                    break;
+                }
+            }
+            if (!found) {
+                std::printf("%0.2f ", 0.0);  
+            }
+        }
+        std::cout << "\n";
+    }
+}
+
 void switchRowColMajor(double *A, const int &m, const int &n)
 {
     //converts A from row major to column major 

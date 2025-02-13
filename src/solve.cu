@@ -256,4 +256,68 @@ void solveDense(double * d_A, double *  d_B, size_t m)
 
 }
 
+void solveSparse(double* dA_values,int *dA_columns, int *dA_csrOffsets, double* d_divergence, double*d_pressure,int A_nnz, const int m)
+{
+    //d_Y is just a placeholder
+    //adapted from https://github.com/NVIDIA/CUDALibrarySamples/blob/master/cuSPARSE/spsv_csr/spsv_csr_example.c
+    
+    cusparseHandle_t     handle = NULL;
+    cusparseSpMatDescr_t matA;
+    cusparseDnVecDescr_t vecX, vecY;
+    void*                dBuffer    = NULL;
+    size_t               bufferSize = 0;
+    cusparseSpSVDescr_t  spsvDescr;
+    float     alpha           = 1.0f;
+
+    CHECK_CUSPARSE( cusparseCreate(&handle) );
+    // Create sparse matrix A in CSR format
+    CHECK_CUSPARSE( cusparseCreateCsr(&matA, m, m, A_nnz,
+                                      dA_csrOffsets, dA_columns, dA_values,
+                                      CUSPARSE_INDEX_32I, CUSPARSE_INDEX_32I,
+                                      CUSPARSE_INDEX_BASE_ZERO, CUDA_R_64F) );
+    // Create dense vector X
+    CHECK_CUSPARSE( cusparseCreateDnVec(&vecX, m, d_divergence, CUDA_R_64F) );
+    // Create dense vector y
+    CHECK_CUSPARSE( cusparseCreateDnVec(&vecY, m, d_pressure, CUDA_R_64F) );
+    //CHECK_CUSPARSE( cusparseCreateDnVec(&vecY, m, d_X, CUDA_R_64F) );
+
+    // Create opaque data structure, that holds analysis data between calls.
+    CHECK_CUSPARSE( cusparseSpSV_createDescr(&spsvDescr) );
+
+    cusparseFillMode_t fillmode = CUSPARSE_FILL_MODE_LOWER;
+    CHECK_CUSPARSE( cusparseSpMatSetAttribute(matA, CUSPARSE_SPMAT_FILL_MODE,
+                                              &fillmode, sizeof(fillmode)) );
+
+    cusparseDiagType_t diagtype = CUSPARSE_DIAG_TYPE_NON_UNIT;//laplace diag is not unit
+    CHECK_CUSPARSE( cusparseSpMatSetAttribute(matA, CUSPARSE_SPMAT_DIAG_TYPE,
+                                              &diagtype, sizeof(diagtype)) );
+    // allocate an external buffer for analysis
+    CHECK_CUSPARSE( cusparseSpSV_bufferSize(
+                                handle, CUSPARSE_OPERATION_NON_TRANSPOSE,
+                                &alpha, matA, vecX, vecY, CUDA_R_64F,
+                                CUSPARSE_SPSV_ALG_DEFAULT, spsvDescr,
+                                &bufferSize) );
+
+    CHECK_CUDA( cudaMalloc(&dBuffer, bufferSize) );
+    CHECK_CUSPARSE( cusparseSpSV_analysis(
+                                handle, CUSPARSE_OPERATION_NON_TRANSPOSE,
+                                &alpha, matA, vecX, vecY, CUDA_R_64F,
+                                CUSPARSE_SPSV_ALG_DEFAULT, spsvDescr, dBuffer) );
+    // execute SpSV
+    CHECK_CUSPARSE( cusparseSpSV_solve(handle, CUSPARSE_OPERATION_NON_TRANSPOSE,
+                                       &alpha, matA, vecX, vecY, CUDA_R_64F,
+                                       CUSPARSE_SPSV_ALG_DEFAULT, spsvDescr) );
+
+
+
+    // destroy matrix/vector descriptors
+    CHECK_CUSPARSE( cusparseDestroySpMat(matA) );
+    CHECK_CUSPARSE( cusparseDestroyDnVec(vecX) );
+    CHECK_CUSPARSE( cusparseDestroyDnVec(vecY) );
+    CHECK_CUSPARSE( cusparseSpSV_destroyDescr(spsvDescr));
+    CHECK_CUSPARSE( cusparseDestroy(handle) );
+    CHECK_CUDA( cudaFree(dBuffer) );
+
+}
+
 }

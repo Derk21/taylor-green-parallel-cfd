@@ -219,9 +219,25 @@ void test_laplace()
 
     CHECK_CUDA(cudaFree(d_lp));
     std::cout << "GPU Laplacian is identical to CPU Laplacian" << std::endl;
-    free(lp);
     free(h_lp);
+
+    //SPARSE
+    double *values = (double*)malloc(5*n*n*sizeof(double));
+    int *col_indices = (int*)malloc(5*n*n*sizeof(int));
+    int *row_offsets = (int*)malloc((n*n+1)*sizeof(int));
+    std::cout << "sparse Laplacian cpu" << std::endl;
+    constructLaplaceSparseCSR(values,row_offsets,col_indices,n,dx);
+
+    printCSR(row_offsets,col_indices,values,n*n);
+    
+    free(values);
+    free(col_indices);
+    free(row_offsets);
+    free(lp);
 }
+
+
+
 
 
 

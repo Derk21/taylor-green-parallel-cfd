@@ -231,6 +231,52 @@ void constructDiscretizedLaplacian(double* laplace_discrete,int n, const double 
     }
 }
 
+void constructLaplaceSparseCSR(double* values, int* row_offsets,int* col_indices,const int n, const double dx)
+{
+
+    //nonzero count 5 per row -> 5*n*n -> allocate val, offsets, cols accordingly
+    //
+    //int nnz = 5*n*n;
+    double diag_value = 4.0 / (dx * dx);
+    double neighbor_value = -1.0 / (dx * dx);
+    int current_nnz = 0;
+    row_offsets[0] = 0;
+    for (int row = 0; row < n * n; row++) 
+    {
+
+        int src_x = row % n;
+        int src_y = row / n;
+
+
+        col_indices[current_nnz] = row;
+        values[current_nnz] = diag_value;
+        current_nnz++;
+
+        int up_src = periodic_linear_Idx(src_x, src_y - 1, n, n);
+        col_indices[current_nnz] = up_src;
+        values[current_nnz] = neighbor_value;
+        current_nnz++;
+
+        int down_src = periodic_linear_Idx(src_x, src_y + 1, n, n);
+        col_indices[current_nnz] = down_src;
+        values[current_nnz] = neighbor_value;
+        current_nnz++;
+        
+        int left_src = periodic_linear_Idx(src_x - 1, src_y, n, n);
+        col_indices[current_nnz] = left_src;
+        values[current_nnz] = neighbor_value;
+        current_nnz++;
+
+        int right_src = periodic_linear_Idx(src_x + 1, src_y, n, n);
+        col_indices[current_nnz] = right_src;
+        values[current_nnz] = neighbor_value;
+        current_nnz++;
+
+        row_offsets[row +1] = current_nnz; //is (0,5,10...) can also do it separately 
+
+    }
+}
+
 namespace gpu {
 __global__  void fillLaplaceValues(double* laplace_discrete, int n, const double dx)
 {
