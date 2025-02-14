@@ -49,6 +49,8 @@ void test_divergence()
 
 void test_make_incompressible()
 {
+    //THIS Test has some weird memory issues i couldn't resolve, 
+    //even though the tests for the kernels and function calls are correct and main doesn't crash
     int n = 8;
     double dx = 1.0;
     double *velocity_grid = (double *)malloc(n * n * 2 * sizeof(double));
@@ -108,22 +110,44 @@ void test_make_incompressible()
     gpu::constructDiscretizedLaplacian(d_lp,n,dx);
     CHECK_CUDA(cudaMemcpy(d_div,divergence,n*n*sizeof(double),cudaMemcpyHostToDevice));
     
-    CHECK_CUDA(cudaDeviceSynchronize());
+    //CHECK_CUDA(cudaDeviceSynchronize());
 
-    gpu::makeIncompressible(d_vel,d_div,d_lp,n,n,dx);
-
-    CHECK_CUDA(cudaMemcpy(h_vel, d_vel,n*n*2*sizeof(double) , cudaMemcpyDeviceToHost));
-    std::cout << "GPU velocity after correction" << std::endl;
-    print_matrix_row_major(n,2*n,h_vel,2*n);
+    //gpu::makeIncompressible(d_vel,d_div,d_lp,n,n,dx);
+    //CHECK_CUDA(cudaMemcpy(h_vel, d_vel,n*n*2*sizeof(double) , cudaMemcpyDeviceToHost));
+    //std::cout << "GPU velocity after correction" << std::endl;
+    //print_matrix_row_major(n,2*n,h_vel,2*n);
     //assert(!all_close(h_vel,velocity_grid_copy,2*n,n));
-    //assert(all_close(h_vel,velocity_grid,2*n,n));
     //std::cout << "CPU corrected velocity is identical to GPU corrected velocity" << std::endl;
-    std::cout << "CPU velocity after correction" << std::endl;
+    CHECK_CUDA(cudaFree(d_lp));
+
+
+    //SPARSE
+    double *d_values,*d_pressure;
+    int *d_columns,*d_row_offsets;
+    int nnz = 5*n*n;
+    CHECK_CUDA(cudaMalloc(&d_values,nnz*sizeof(double)));
+    CHECK_CUDA(cudaMalloc(&d_columns,nnz*sizeof(int)));
+    CHECK_CUDA(cudaMalloc(&d_row_offsets,(n*n+1)*sizeof(int)));
+    CHECK_CUDA(cudaMalloc(&d_pressure,n*n*sizeof(double)));
+
+    int numThreads = 16; 
+    int numBlocks = (nnz+ numThreads - 1) / numThreads;
+    gpu::constructLaplaceSparseCSR<<<numBlocks,numThreads>>>(d_values,d_row_offsets,d_columns,n,dx);
+
+    CHECK_CUDA(cudaMemcpy(d_pressure,pressure,n*n*sizeof(double),cudaMemcpyHostToDevice));
+
+    gpu::makeIncompressibleSparse(velocity_grid,d_div,d_pressure,d_values,d_columns,d_row_offsets,n,n,dx);
+    CHECK_CUDA(cudaMemcpy(h_vel, d_vel,n*n*2*sizeof(double) , cudaMemcpyDeviceToHost));
+    std::cout << "GPU Sparse velocity after correction" << std::endl;
+    print_matrix_row_major(n,2*n,h_vel,2*n);
 
     CHECK_CUDA(cudaFree(d_div));
     CHECK_CUDA(cudaFree(d_vel));
-    CHECK_CUDA(cudaFree(d_lp));
+    CHECK_CUDA(cudaFree(d_values));
+    CHECK_CUDA(cudaFree(d_row_offsets));
+    CHECK_CUDA(cudaFree(d_columns));
 
+    std::cout << "CPU velocity after correction" << std::endl;
     makeIncompressible(velocity_grid_copy,divergence,pressure,n,n,dx);
     print_matrix_row_major(n,2*n,velocity_grid_copy,2*n);
     assert(all_close(h_vel,velocity_grid_copy,2*n,n));
@@ -260,18 +284,12 @@ void test_laplace()
     free(h_values);
     free(h_columns);
     free(h_row_offsets);
-    
+
     free(values);
     free(col_indices);
     free(row_offsets);
     free(lp);
 }
-
-
-
-
-
-
 
 int main()
 {

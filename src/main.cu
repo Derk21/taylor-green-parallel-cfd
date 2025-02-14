@@ -60,11 +60,13 @@ int main()
         CHECK_CUDA(cudaMalloc(&d_periodic_grid, NUM_N * M * 2 * sizeof(double)));
         CHECK_CUDA(cudaMalloc(&d_vel, NUM_N * M * 2 * sizeof(double)));
         CHECK_CUDA(cudaMalloc(&d_vel_A, NUM_N * M * 2 * sizeof(double)));
-        CHECK_CUDA(cudaMalloc(&d_vel_B, NUM_N * M * 2 * sizeof(double)));
+        if(MACCORMACK) CHECK_CUDA(cudaMalloc(&d_vel_B, NUM_N * M * 2 * sizeof(double)));
 
         //for maccormack
-        CHECK_CUDA(cudaMalloc(&d_integrated_bw, NUM_N * M * 2 * sizeof(double)));
-        CHECK_CUDA(cudaMalloc(&d_integrated_fw, NUM_N * M * 2 * sizeof(double)));
+        if(MACCORMACK){
+            CHECK_CUDA(cudaMalloc(&d_integrated_bw, NUM_N * M * 2 * sizeof(double)));
+            CHECK_CUDA(cudaMalloc(&d_integrated_fw, NUM_N * M * 2 * sizeof(double)));
+        }
         //pressure correction
         double *d_laplace,*d_pressure;
         int *d_lp_cols,*d_lp_row_offsets;
@@ -85,7 +87,7 @@ int main()
         CHECK_CUDA(cudaMemcpy(d_periodic_grid,periodic_grid,NUM_N*M*2*sizeof(double),cudaMemcpyHostToDevice));
         CHECK_CUDA(cudaMemcpy(d_vel,velocity_grid,NUM_N*M*2*sizeof(double),cudaMemcpyHostToDevice));
         CHECK_CUDA(cudaMemcpy(d_vel_A,velocity_grid,NUM_N*M*2*sizeof(double),cudaMemcpyHostToDevice));
-        CHECK_CUDA(cudaMemcpy(d_vel_B,velocity_grid,NUM_N*M*2*sizeof(double),cudaMemcpyHostToDevice));
+        if(MACCORMACK)  CHECK_CUDA(cudaMemcpy(d_vel_B,velocity_grid,NUM_N*M*2*sizeof(double),cudaMemcpyHostToDevice));
 
         CHECK_CUDA(cudaMemset(d_divergence,0,NUM_N * M * sizeof(double)))
 
@@ -94,7 +96,6 @@ int main()
             int blockDim = TILE_SIZE*TILE_SIZE; 
             int gridDim = (nnz+ blockDim - 1) / blockDim;
             gpu::constructLaplaceSparseCSR<<<gridDim,blockDim>>>(d_laplace,d_lp_row_offsets,d_lp_cols); 
-            
         }
         else{
             gpu::constructDiscretizedLaplacian(d_laplace);
@@ -102,14 +103,12 @@ int main()
 
         for (int i = 1; i < ITERATIONS+1; i++){
             gpu::diffuseExplicit(d_vel);
-            //gpu::advectSemiLagrange(d_vel,d_vel_A,d_periodic_grid);
-            //gpu::advectMacCormack(d_vel,d_vel_A,d_vel_B,d_integrated_fw,d_integrated_bw,d_periodic_grid);
-            if (SPARSE){
-                gpu::makeIncompressibleSparse(d_vel,d_divergence,d_pressure,d_laplace,d_lp_cols,d_lp_row_offsets);
-            }
-            else{
-                gpu::makeIncompressible(d_vel,d_divergence,d_laplace);
-            }
+
+            MACCORMACK ? gpu::advectMacCormack(d_vel,d_vel_A,d_vel_B,d_integrated_fw,d_integrated_bw,d_periodic_grid)
+                       : gpu::advectSemiLagrange(d_vel,d_vel_A,d_periodic_grid);
+
+            SPARSE ? gpu::makeIncompressibleSparse(d_vel, d_divergence, d_pressure, d_laplace, d_lp_cols, d_lp_row_offsets)
+                   : gpu::makeIncompressible(d_vel, d_divergence, d_laplace);
 
             //copy result to buffer
             int buffer_index = (i - 1) % BUFFER_SIZE;  
@@ -146,13 +145,15 @@ int main()
         std::chrono::duration<double> gpu_seconds = end_gpu - start_gpu;
         std::cout << "gpu time: " << gpu_seconds.count() << "s" <<std::endl;
         free(h_velocity_buffer);
-        CHECK_CUDA(cudaFree(d_integrated_bw));
-        CHECK_CUDA(cudaFree(d_integrated_fw));
         CHECK_CUDA(cudaFree(d_velocity_buffer));
         CHECK_CUDA(cudaFree(d_periodic_grid));
         CHECK_CUDA(cudaFree(d_vel));
         CHECK_CUDA(cudaFree(d_vel_A));
-        CHECK_CUDA(cudaFree(d_vel_B));
+        if(MACCORMACK){ 
+            CHECK_CUDA(cudaFree(d_vel_B));
+            CHECK_CUDA(cudaFree(d_integrated_bw));
+            CHECK_CUDA(cudaFree(d_integrated_fw));
+        }
         CHECK_CUDA(cudaFree(d_laplace));
         CHECK_CUDA(cudaFree(d_divergence));
         if (SPARSE)
@@ -163,21 +164,16 @@ int main()
         }
 
     }
+    else{
 
-    
-    //double *d_curr;
-    //allocate memory on device    
-    //CHECK_CUDA(cudaMalloc(&d_curr, NUM_N * M * sizeof(double)));
-    //copy data to device
-    //CHECK_CUDA(cudaMemcpy(d_curr, curr, NUM_N * M * sizeof(double), cudaMemcpyHostToDevice));
-    if (CPU){
-
+        double *laplace = (double *)malloc(NUM_N * M * NUM_N * M * sizeof(double));
         auto start_cpu = std::chrono::system_clock::now();
+        constructDiscretizedLaplacian(laplace);
+        auto advect = MACCORMACK ? advectMacCormack : advectSemiLagrange;
         for (int i = 1; i < ITERATIONS+1; i++){
             diffuseExplicit(velocity_grid,velocity_grid_next);
-            //advectSemiLagrange(velocity_grid,velocity_grid_next,periodic_grid,TIMESTEP);
-            advectMacCormack(velocity_grid,velocity_grid_next,periodic_grid,TIMESTEP);
-            makeIncompressible(velocity_grid,divergence,pressure);
+            advect(velocity_grid, velocity_grid_next, periodic_grid, TIMESTEP,NUM_N,M,DX);
+            makeIncompressible(velocity_grid, divergence, pressure, laplace);
 
             //taylorGreenGroundTruth(periodic_grid,velocity_grid_next,i,NUM_N,M);
             //std::swap(velocity_grid,velocity_grid_next);
@@ -190,6 +186,7 @@ int main()
         auto end_cpu = std::chrono::system_clock::now();
         std::chrono::duration<double> gpu_seconds = end_cpu - start_cpu;
         std::cout << "cpu time: " << gpu_seconds.count() << "s" <<std::endl;
+        free(laplace);
     }
     std::cout << "Creating velocity animation" << std::endl;
     createGifFromPngs(dirName,"animation_velocity.gif",PERIODIC_START,PERIODIC_END);

@@ -6,7 +6,7 @@
 #include "utils.cuh"
 #include "solve.cuh"
 
-void makeIncompressible(double* velocity_grid, double* divergence, double* pressure, int n = NUM_N, int m = M, const double dx = DX);
+void makeIncompressible(double* velocity_grid, double* divergence, double* pressure,double* laplace, int n = NUM_N, int m = M, const double dx = DX);
 
 void correct_velocity(double * velocity_grid,double * pressure,int n, int m, double dx);
 

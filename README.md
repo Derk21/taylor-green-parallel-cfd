@@ -2,6 +2,12 @@
  University Project for GPU Computing class at TU Berlin
 - Development of a parallelized fluid simulation (diffusion, advection, pressure correction)
 
+### measurements
+(explicit diffusion, maccormack advection, 60 steps):
+- cpu + gpu dense solver:  17.382s
+- end2end gpu , dense solver (Buffsersize 20): 9.538s 
+- end2end gpu, sparse cholesky solver (Buffersize 20): 1.999s
+
 ## Current state of simulation:
 (gpu: explicit diffusion + pressure correction, advection methods are currently wrong)
 
@@ -34,6 +40,7 @@ run tests like this:
 ```
 make test_diffusion && ./bin/diffusion
 ```
+adjust parameters like timestep, iterations, sparse/dense, maccormack etc. in [constants.cuh](bin/constants.cuh)
 
 ## Features:
 Diffusion:
@@ -50,7 +57,9 @@ Pressure Correction:
 - shared memory (used in divergence, interpolation and diffusion)
 - coalescing (only in parts (divergence and interpolation use it partly in shared memory))
 - biggest speedup came from implementation of sparse pressure correction (~5x faster)
+- async Streams (independent Kernels in Mac Cormack Advection)
 - optimization of launch configurations 
+
 
 # Issues
 - advection looks wrong and gpu-cpu implementation of mac-cormack have different results

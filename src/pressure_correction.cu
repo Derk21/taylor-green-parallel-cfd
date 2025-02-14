@@ -1,15 +1,15 @@
 #include "pressure_correction.cuh"
 
-void makeIncompressible(double* velocity_grid, double* divergence, double*pressure, int n, int m, const double dx){
+void makeIncompressible(double* velocity_grid, double* divergence, double*pressure,double* laplace, int n, int m, const double dx){
     calculateDivergence(velocity_grid,divergence,n,n,dx);
     //cuBlas is column major
     //switchRowColMajor(divergence,m,n); //not needed, solver interprets this as 1D-vector anyways
 
-    double *laplace = (double *)malloc(n * m * n * m * sizeof(double));
+    //double *laplace = (double *)malloc(n * m * n * m * sizeof(double));
     //std::cout << "Divergence" << std::endl;
     //print_matrix(m, n, divergence, n);
     //std::cout << "Laplacian" << std::endl;
-    constructDiscretizedLaplacian(laplace,n,dx); // LP^T = LP -> no need to transpose
+    //constructDiscretizedLaplacian(laplace,n,dx); // LP^T = LP -> no need to transpose
 
     //print_matrix(n*m, n*m, laplace, n*m);
     size_t pressure_size = n*m;
@@ -17,7 +17,7 @@ void makeIncompressible(double* velocity_grid, double* divergence, double*pressu
     //std::cout << "Pressure" << std::endl;
     //switchRowColMajor(pressure,n,m);
     //print_matrix_row_major(m, n, pressure, n);
-    free(laplace);
+    //free(laplace);
     correct_velocity(velocity_grid,pressure,n,m,dx);
 }
 void correct_velocity(double * velocity_grid,double * pressure,int n, int m, double dx)
@@ -28,27 +28,14 @@ void correct_velocity(double * velocity_grid,double * pressure,int n, int m, dou
         {   
             int u_i = 2 * i;
             int v_i = 2 * i + 1;
-            //TODO: check which finite difference to use
             double p = pressure[periodic_linear_Idx(i,y_i,n,m)];
             double p_right = pressure[periodic_linear_Idx(i+1,y_i,n,m)];
             double p_down = pressure[periodic_linear_Idx(i,y_i+1,n,m)];
             double p_dx = (p_right - p) / dx;
             double p_dy = (p_down - p) / dx;
 
-            //central differences
-            //double p = pressure[periodic_linear_Idx(i,y_i,n,m)];
-            //double p_left = pressure[periodic_linear_Idx(i-1,y_i,n,m)];
-            //double p_right = pressure[periodic_linear_Idx(i+1,y_i,n,m)];
-            //double p_up = pressure[periodic_linear_Idx(i,y_i-1,n,m)];
-            //double p_down = pressure[periodic_linear_Idx(i,y_i+1,n,m)];
-            //double p_dx = (p_right - p_left) / dx;
-            //double p_dy = (p_down - p_up) / dy;
-
-            //TODO:scale somehow with dt?
             velocity_grid[periodic_linear_Idx(u_i,y_i,2*n,m)] -= p_dx;
             velocity_grid[periodic_linear_Idx(v_i,y_i,2*n,m)] -= p_dy;
-            //velocity_grid[periodic_linear_Idx(u_i,y_i)] += p_dx;
-            //velocity_grid[periodic_linear_Idx(v_i,y_i)] += p_dy;
         }
     }
 }
@@ -60,8 +47,8 @@ void makeIncompressibleSparse(double* velocity_grid, double* divergence, double*
 
     dim3 blockDim(TILE_SIZE,TILE_SIZE);
     dim3 gridDim((n+ TILE_SIZE-1)/TILE_SIZE,(m+ TILE_SIZE-1)/TILE_SIZE); 
-    //gpu::calculateDivergence<<<gridDim,blockDim>>>(velocity_grid,divergence,n,m,dx);
-    //CHECK_CUDA(cudaDeviceSynchronize());
+    gpu::calculateDivergence<<<gridDim,blockDim>>>(velocity_grid,divergence,n,m,dx);
+    CHECK_CUDA(cudaDeviceSynchronize());
 
     gpu::solveSparse(lp_values,lp_columns,lp_row_offsets,divergence,pressure,5*n*m,n*m);
     CHECK_CUDA(cudaDeviceSynchronize());

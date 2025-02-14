@@ -3,8 +3,8 @@
 #define CONSTANTS_H
 // Performance Optimizing Parameters
     #define GPU true
-    #define CPU false
     #define SPARSE true
+    #define MACCORMACK true
     #define BUFFER_SIZE 20 // number of simulation steps before copy to host
     #define TILE_SIZE 16
     //TILING etc

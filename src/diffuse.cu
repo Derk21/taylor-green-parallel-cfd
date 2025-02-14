@@ -116,15 +116,16 @@ __global__ void diffuseExplicitStep(double *velocity_grid,  const double amount,
     {
         if (threadIdx.y < blockDim.y && threadIdx.x < blockDim.x){
             
-            double u = CURR[t_row * PADDED_SIZE.x + t_col];
+            double c = CURR[t_row * PADDED_SIZE.x + t_col];
 
-            double u_left = CURR[t_row * PADDED_SIZE.x + (t_col-2)];
-            double u_right = CURR[t_row * PADDED_SIZE.x + (t_col+2)];
-            double u_up = CURR[(t_row+1) * PADDED_SIZE.x + t_col];
-            double u_down = CURR[(t_row-1) * PADDED_SIZE.x + t_col];
+            double left = CURR[t_row * PADDED_SIZE.x + (t_col-2)];
+            double right = CURR[t_row * PADDED_SIZE.x + (t_col+2)];
+            double up = CURR[(t_row+1) * PADDED_SIZE.x + t_col];
+            double down = CURR[(t_row-1) * PADDED_SIZE.x + t_col];
 
-            double u_diffusion = (u_right - 2 * u + u_left) / (dx * dx) + (u_up - 2 * u + u_down) / (dx * dx);
-            NEXT[t_row*PADDED_SIZE.x+t_col]= u + amount * u_diffusion;
+            double diffusion = (right - 2 * c + left) / (dx * dx) 
+                                + (up - 2 * c + down) / (dx * dx);
+            NEXT[t_row*PADDED_SIZE.x+t_col]= c + amount * diffusion;
         }
     }
     //copy back to global memory (might move this into if condition above)
