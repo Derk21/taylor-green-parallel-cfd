@@ -28,6 +28,13 @@ void advectSemiLagrange(
     const double *periodic_grid, 
     const double dt=TIMESTEP, int n=NUM_N, int m=M,double dx=DX);
 
+void advectSemiLagrangeSeparate(
+    double *velocity_grid,
+    double *velocity_grid_next,
+    double *integrated_backward, 
+    const double *periodic_grid, 
+    const double dt, int n, int m,double dx);
+
 void advectMacCormack(
     double *velocity_grid,
     double *velocity_grid_backward, 

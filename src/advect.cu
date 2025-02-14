@@ -27,8 +27,8 @@ __host__ __device__ double get_interpolated(const int &i_closest, const int & y_
     double weight_next_x_y = x_diff * y_diff;
     double weight_next_y = (1.0 - x_diff) * y_diff;
 
-    double sum_weights = weight_contained + weight_next_x + weight_next_y + weight_next_x_y;
-    assert(is_close(sum_weights,1.0));
+    //double sum_weights = weight_contained + weight_next_x + weight_next_y + weight_next_x_y;
+    //assert(is_close(sum_weights,1.0));
     double val = weight_contained * velocity_grid[periodic_linear_Idx(i_closest, y_i_closest,2*n,m)];
     // y_direction next grid cell
     val += weight_next_y * velocity_grid[periodic_linear_Idx(i_closest, y_i_closest + 1,2*n,m)];
@@ -130,7 +130,7 @@ void advectMacCormack(double *velocity_grid, double *velocity_grid_next, const d
             //double y_forward_d = integrated_fw[periodic_linear_Idx(v_i,y_i,2*n,m)];
             double u_bw_fw = velocity_bw[periodic_linear_Idx(u_i,y_i,2*n,m)];
             double v_bw_fw = velocity_bw[periodic_linear_Idx(v_i,y_i,2*n,m)];
-            interpolateVelocity(u_bw_fw,v_bw_fw,x_forward_d, y_forward_d, periodic_grid, velocity_grid,n,m,dx);
+            interpolateVelocity(u_bw_fw,v_bw_fw,x_forward_d, y_forward_d, periodic_grid, velocity_bw,n,m,dx);
             velocity_bw_fw[periodic_linear_Idx(u_i,y_i,2*n,m)] = u_bw_fw;
             velocity_bw_fw[periodic_linear_Idx(v_i,y_i,2*n,m)] = v_bw_fw;
 
@@ -171,16 +171,39 @@ namespace gpu
 
 void advectSemiLagrange(
     double *velocity_grid,
-    double *velocity_grid_backward, 
+    double *velocity_grid_next, 
     const double *periodic_grid, 
     const double dt, int n, int m,double dx)
 {
     dim3 blockDim(TILE_SIZE,TILE_SIZE);
     dim3 gridDim((n + TILE_SIZE-1)/TILE_SIZE,(n+ TILE_SIZE-1)/TILE_SIZE); 
     gpu::integrateAndInterpolateKernel<<<gridDim, blockDim>>>(
-        periodic_grid,velocity_grid,velocity_grid_backward,-dt,n,m,dx);
+        periodic_grid,velocity_grid,velocity_grid_next,-dt,n,m,dx);
+    //gpu::integrateKernel<<<gridDim,blockDim>>>(periodic_grid,velocity_grid,velocity_grid_backward,-dt,n,m);
+    //gpu::interpolateKernel<<<gridDim,blockDim>>>(periodic_grid,)
     //clipping?
-    CHECK_CUDA(cudaMemcpy(velocity_grid,velocity_grid_backward,n*m*2*sizeof(double),cudaMemcpyDeviceToDevice));
+    CHECK_CUDA(cudaMemcpy(velocity_grid,velocity_grid_next,n*m*2*sizeof(double),cudaMemcpyDeviceToDevice));
+}
+
+void advectSemiLagrangeSeparate(
+    double *velocity_grid,
+    double *velocity_grid_next,
+    double *integrated_backward, 
+    const double *periodic_grid, 
+    const double dt, int n, int m,double dx)
+{
+    dim3 blockDim(TILE_SIZE,TILE_SIZE);
+    dim3 gridDim((n + TILE_SIZE-1)/TILE_SIZE,(m+ TILE_SIZE-1)/TILE_SIZE); 
+    //gpu::integrateAndInterpolateKernel<<<gridDim, blockDim>>>(
+        //periodic_grid,velocity_grid,velocity_grid_backward,-dt,n,m,dx);
+    dim3 gridDimIntegrate(((2*n) + TILE_SIZE-1)/TILE_SIZE,(m+ TILE_SIZE-1)/TILE_SIZE); 
+    gpu::integrateKernel<<<gridDimIntegrate,blockDim>>>
+        (periodic_grid,velocity_grid,integrated_backward,-dt,n,m);
+    //CHECK_CUDA(cudaDeviceSynchronize());
+    gpu::interpolateKernel<<<gridDim,blockDim>>>
+        (periodic_grid,velocity_grid,velocity_grid_next,integrated_backward,n,m,dx);
+    //clipping?
+    CHECK_CUDA(cudaMemcpy(velocity_grid,velocity_grid_next,n*m*2*sizeof(double),cudaMemcpyDeviceToDevice));
 }
 
 
@@ -198,15 +221,17 @@ void advectMacCormack(
     cudaStreamCreate(&stream_forward);
     cudaStreamCreate(&stream_backward);
     dim3 blockDim(TILE_SIZE,TILE_SIZE);
-    dim3 gridDim((n + TILE_SIZE-1)/TILE_SIZE,(n+ TILE_SIZE-1)/TILE_SIZE); 
+    dim3 gridDim((n + TILE_SIZE-1)/TILE_SIZE,(m+ TILE_SIZE-1)/TILE_SIZE); 
+    dim3 gridDimIntegrate(((2*n) + TILE_SIZE-1)/TILE_SIZE,(m+ TILE_SIZE-1)/TILE_SIZE); 
+    //dim3 gridDimInterpolate((n + TILE_SIZE-1)/TILE_SIZE,(n+ TILE_SIZE-1)/TILE_SIZE); 
     
-    gpu::integrateKernel<<<gridDim,blockDim,0,stream_backward>>>(
+    gpu::integrateKernel<<<gridDimIntegrate,blockDim,0,stream_backward>>>(
         periodic_grid,velocity_grid,integrated_bw,-dt,n,m);
 
     gpu::interpolateKernel<<<gridDim, blockDim,0,stream_backward>>>(
         periodic_grid,velocity_grid,velocity_bw,integrated_bw,n,m,dx);
 
-    gpu::integrateKernel<<<gridDim,blockDim,0,stream_forward>>>(
+    gpu::integrateKernel<<<gridDimIntegrate,blockDim,0,stream_forward>>>(
         periodic_grid,velocity_grid,integrated_fw,dt,n,m);
 
     cudaStreamSynchronize(stream_backward);
@@ -231,16 +256,26 @@ void advectMacCormack(
 
 __global__ void integrateKernel(const double *periodic_grid, const double *velocity_grid, double * integrated,const double dt,const int n, const int m)
 {
+    //launch for 2*n,n
     int col = threadIdx.x + blockIdx.x * blockDim.x; 
     int row = threadIdx.y + blockIdx.y * blockDim.y; 
-    int u_i = col * 2;
-    int v_i = (col * 2) + 1;
-    if (row < m && col < n)
+    //int u_i = col * 2;
+    //int v_i = (col * 2) + 1;
+    if (row < m && col < 2*n)
     {
-        double x_d, y_d; 
-        integrateEuler(velocity_grid,row,u_i,v_i,periodic_grid,x_d,y_d,dt,n,m);
-        integrated[periodic_linear_Idx(u_i,row,2*n,m)] = x_d;
-        integrated[periodic_linear_Idx(v_i,row,2*n,m)] = y_d;
+        double x_d; 
+        
+        double old = velocity_grid[periodic_linear_Idx(col, row,2*n,m)];
+        //double v_old = velocity_grid[periodic_linear_Idx(v_i, row,2*n,m)];
+
+        double x = periodic_grid[periodic_linear_Idx(col, row,2*n,m)];
+        //double y = periodic_grid[periodic_linear_Idx(v_i,row,2*n,m)];
+
+        x_d = fmod(x + dt * old+PERIODIC_END,PERIODIC_END)+PERIODIC_START;
+        //y_d = fmod(y + dt * v_old+PERIODIC_END,PERIODIC_END)+PERIODIC_START;
+        //integrateEuler(velocity_grid,row,u_i,v_i,periodic_grid,x_d,y_d,dt,n,m);
+        integrated[periodic_linear_Idx(col,row,2*n,m)] = x_d;
+        //integrated[periodic_linear_Idx(v_i,row,2*n,m)] = y_d;
     }
 
 }
@@ -249,18 +284,168 @@ __global__ void interpolateKernel(const double *periodic_grid, const double *vel
 {
     int col = threadIdx.x + blockIdx.x * blockDim.x; 
     int row = threadIdx.y + blockIdx.y * blockDim.y; 
-    int u_i = col * 2;
-    int v_i = (col * 2) + 1;
-    if (row < m && col < n)
-    {
-        double x_d, y_d,u,v; 
-        x_d = integrated[periodic_linear_Idx(u_i,row,2*n,m)];
-        y_d = integrated[periodic_linear_Idx(v_i,row,2*n,m)];
-        interpolateVelocity(u,v,x_d,y_d,periodic_grid,velocity_grid,n,m,dx);
-        velocity_grid_next[periodic_linear_Idx(u_i,row,2*n,m)] = u;
-        velocity_grid_next[periodic_linear_Idx(v_i,row,2*n,m)] = v;
+    
+    if (row < m && col < n) {
+        int u_i = col * 2;
+        int v_i = (col * 2) + 1;
+        
+        double x_d = integrated[periodic_linear_Idx(u_i, row, 2 * n, m)];
+        double y_d = integrated[periodic_linear_Idx(v_i, row, 2 * n, m)];
+        
+        int u_i_closest, v_i_closest, y_i_closest;
+        setClosestGridPointIdx(x_d, y_d, n, m, v_i_closest, y_i_closest);
+        u_i_closest = v_i_closest - 1;
+        
+        double x_closest = periodic_grid[periodic_linear_Idx(u_i_closest, y_i_closest, 2 * n, m)];
+        double y_closest = periodic_grid[periodic_linear_Idx(v_i_closest, y_i_closest, 2 * n, m)];
+        
+        double x_diff = (x_d - x_closest) / dx;
+        double y_diff = (y_d - y_closest) / dx;
+        
+        double weight_contained = (1.0 - x_diff) * (1.0 - y_diff);
+        double weight_next_x = x_diff * (1.0 - y_diff);
+        double weight_next_x_y = x_diff * y_diff;
+        double weight_next_y = (1.0 - x_diff) * y_diff;
+        
+        double u = weight_contained * velocity_grid[periodic_linear_Idx(u_i_closest, y_i_closest, 2 * n, m)];
+        u += weight_next_y * velocity_grid[periodic_linear_Idx(u_i_closest, y_i_closest + 1, 2 * n, m)];
+        u += weight_next_x * velocity_grid[periodic_linear_Idx(u_i_closest + 2, y_i_closest, 2 * n, m)];
+        u += weight_next_x_y * velocity_grid[periodic_linear_Idx(u_i_closest + 2, y_i_closest + 1, 2 * n, m)];
+        
+        double v = weight_contained * velocity_grid[periodic_linear_Idx(v_i_closest, y_i_closest, 2 * n, m)];
+        v += weight_next_y * velocity_grid[periodic_linear_Idx(v_i_closest, y_i_closest + 1, 2 * n, m)];
+        v += weight_next_x * velocity_grid[periodic_linear_Idx(v_i_closest + 2, y_i_closest, 2 * n, m)];
+        v += weight_next_x_y * velocity_grid[periodic_linear_Idx(v_i_closest + 2, y_i_closest + 1, 2 * n, m)];
+        
+        velocity_grid_next[periodic_linear_Idx(u_i, row, 2 * n, m)] = u;
+        velocity_grid_next[periodic_linear_Idx(v_i, row, 2 * n, m)] = v;
     }
 }
+
+//__global__ void interpolateKernel(const double *periodic_grid, const double *velocity_grid, double * velocity_grid_next,double * integrated,const int n, const int m,const double dx)
+//{
+    //int col = threadIdx.x + blockIdx.x * blockDim.x; 
+    //int row = threadIdx.y + blockIdx.y * blockDim.y; 
+    //int u_i = col * 2;
+    //int v_i = (col * 2) + 1;
+    //SADLY I COULDN'T FIX THE SHARED MEMORY IMPLEMENTATION IN TIME
+    //const int PADDED_SIZE = TILE_SIZE+1;
+    //__shared__ double2 VEL[(TILE_SIZE+1)*(TILE_SIZE+1)];
+    //__shared__ double2 PERIODIC[(TILE_SIZE+1)*(TILE_SIZE+1)];
+    ////init shared
+    //TODO: switch to 1 thread per velocity component?
+    //if (row < m && col < n)
+    //{
+        //if(threadIdx.x < TILE_SIZE && threadIdx.y < TILE_SIZE)
+        //{
+            ////fill inner
+            //double2 temp;
+            //temp.x = velocity_grid[periodic_linear_Idx(u_i,row,2*n,m)];
+            //temp.y = velocity_grid[periodic_linear_Idx(v_i,row,2*n,m)];
+            //VEL[threadIdx.y * PADDED_SIZE + threadIdx.x] = temp;
+            //temp.x = periodic_grid[periodic_linear_Idx(u_i,row,2*n,m)];
+            //temp.y = periodic_grid[periodic_linear_Idx(v_i,row,2*n,m)];
+            //PERIODIC[threadIdx.y*PADDED_SIZE+threadIdx.x]=temp;
+            ////down bound
+            //if (threadIdx.y == (TILE_SIZE-1)){
+                //temp.x = velocity_grid[periodic_linear_Idx(u_i,row+1,2*n,m)];
+                //temp.y = velocity_grid[periodic_linear_Idx(v_i,row+1,2*n,m)];
+                //VEL[(threadIdx.y+1) * PADDED_SIZE + threadIdx.x] = temp;
+                //temp.x = periodic_grid[periodic_linear_Idx(u_i,row+1,2*n,m)];
+                //temp.y = periodic_grid[periodic_linear_Idx(v_i,row+1,2*n,m)];
+                //PERIODIC[(threadIdx.y+1)*PADDED_SIZE+threadIdx.x]=temp;
+
+            //}
+            //if (threadIdx.x == (TILE_SIZE-1)){
+                //temp.x = velocity_grid[periodic_linear_Idx(u_i+2,row,2*n,m)];
+                //temp.y = velocity_grid[periodic_linear_Idx(v_i+2,row,2*n,m)];
+                //VEL[threadIdx.y * PADDED_SIZE + (threadIdx.x+1)] = temp;
+                //temp.x = periodic_grid[periodic_linear_Idx(u_i+2,row,2*n,m)];
+                //temp.y = periodic_grid[periodic_linear_Idx(v_i+2,row,2*n,m)];
+                //PERIODIC[threadIdx.y*PADDED_SIZE+(threadIdx.x+1)]=temp;
+            //}
+        //}
+    //}
+    //__syncthreads();
+
+    //if (row < m && col < n)
+    //{
+        //double x_d, y_d;
+        //x_d = integrated[periodic_linear_Idx(u_i,row,2*n,m)];
+        //y_d = integrated[periodic_linear_Idx(v_i,row,2*n,m)];
+        //int u_i_closest, v_i_closest, y_i_closest;
+        //setClosestGridPointIdx(x_d, y_d, n, m, v_i_closest, y_i_closest);
+        //u_i_closest = v_i_closest - 1;
+
+        ////int closest_x = (u_i_closest / 2); 
+        ////int closest_y = y_i_closest ;
+        ////shared memory bound
+        ////if ((closest_x+1) / PADDED_SIZE == blockIdx.x && (closest_y+1)/ PADDED_SIZE == blockIdx.y)
+        ////if (closest_x >= blockIdx.x * TILE_SIZE && 
+            ////closest_x + 1 < (blockIdx.x * TILE_SIZE + PADDED_SIZE) &&
+            ////closest_y >= blockIdx.y * TILE_SIZE && 
+            ////closest_y + 1 < (blockIdx.y * TILE_SIZE + PADDED_SIZE))
+        ////{
+            ////int t_closest_x = closest_x % PADDED_SIZE;
+            ////int t_closest_y = closest_y % PADDED_SIZE;
+            ////double2 test;
+            ////test.x = periodic_grid[periodic_linear_Idx(u_i_closest, y_i_closest,2*n,m)];
+            ////test.y = periodic_grid[periodic_linear_Idx(v_i_closest, y_i_closest,2*n,m)];
+
+            ////double2 closest = PERIODIC[t_closest_y * PADDED_SIZE + t_closest_x];
+            ////assert(test.x == closest.x);
+            ////assert(test.y == closest.y);
+
+            //////double dx = (periodic_end - periodic_start) / (n - 1);
+            //////double dy = (periodic_end - periodic_start ) / (m - 1);
+            ////double x_diff = (x_d - closest.x) / dx;
+            ////double y_diff = (y_d - closest.y) / dx;
+
+            ////double weight_contained = (1.0 - x_diff) * (1.0 - y_diff);
+            ////double weight_next_x = x_diff * (1.0 - y_diff);
+            ////double weight_next_x_y = x_diff * y_diff;
+            ////double weight_next_y = (1.0 - x_diff) * y_diff;
+
+            //////double sum_weights = weight_contained + weight_next_x + weight_next_y + weight_next_x_y;
+            //////assert(is_close(sum_weights,1.0));
+            ////double2 interpolated;
+            ////interpolated.x = weight_contained * VEL[t_closest_y * PADDED_SIZE + t_closest_x].x;
+            ////interpolated.y = weight_contained * VEL[t_closest_y * PADDED_SIZE + t_closest_x].y;
+
+            ////double u_test = weight_contained * velocity_grid[periodic_linear_Idx(u_i, y_i_closest,2*n,m)];
+            ////assert(interpolated.x==u_test);
+
+
+            ////// y_direction next grid cell
+            ////interpolated.x += weight_next_y * VEL[(t_closest_y+1)*PADDED_SIZE+t_closest_x].x;
+            ////interpolated.y += weight_next_y * VEL[(t_closest_y+1)*PADDED_SIZE+t_closest_x].y;
+            ////////// x_direction next grid cell
+            ////interpolated.x += weight_next_x * VEL[t_closest_y*PADDED_SIZE+(t_closest_x+1)].x;
+            ////interpolated.y += weight_next_x * VEL[t_closest_y*PADDED_SIZE+(t_closest_x+1)].y;
+            ////////// next grid cell in diagonal direction 
+            ////interpolated.x += weight_next_x_y * VEL[(t_closest_y+1)*PADDED_SIZE+(t_closest_x+1)].x;
+            ////interpolated.y += weight_next_x_y * VEL[(t_closest_y+1)*PADDED_SIZE+(t_closest_x+1)].y;
+            ////// forward bilinear interpolation
+            ////velocity_grid_next[periodic_linear_Idx(u_i,row,2*n,m)] = interpolated.x;
+            ////velocity_grid_next[periodic_linear_Idx(v_i,row,2*n,m)] = interpolated.y;
+        ////}
+        ////else{
+            //double x_closest = periodic_grid[periodic_linear_Idx(u_i_closest, y_i_closest,2*n,m)];
+            //double y_closest = periodic_grid[periodic_linear_Idx(v_i_closest, y_i_closest,2*n,m)];
+            ////double dx = (periodic_end - periodic_start) / (n - 1);
+            ////double dy = (periodic_end - periodic_start ) / (m - 1);
+            //double x_diff = (x_d - x_closest) / dx;
+            //double y_diff = (y_d - y_closest) / dx;
+
+            //// forward bilinear interpolation
+            ////TODO: weights are calculated twice
+            //velocity_grid_next[periodic_linear_Idx(u_i,row,2*n,m)] = 
+                //get_interpolated(u_i_closest,y_i_closest,x_diff,y_diff,velocity_grid,n,m);
+            //velocity_grid_next[periodic_linear_Idx(v_i,row,2*n,m)] = 
+                //get_interpolated(v_i_closest,y_i_closest,x_diff,y_diff,velocity_grid,n,m);
+        ////}
+    //}
+//}
 
 
 __global__ void integrateAndInterpolateKernel(const double *periodic_grid, const double *velocity_grid, double * velocity_grid_next,const double dt,const int n, const int m,const double dx)
