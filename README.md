@@ -46,6 +46,10 @@ rmse: of mac
 
 # Running the simulation
 ```
+cmake .
+```
+
+```
 make main && ./bin/main
 ```
 output: timestamped directory in plots/timestamp/ contains .dat and plotted png of every iteration, animated gif of simulation and an error plot.
