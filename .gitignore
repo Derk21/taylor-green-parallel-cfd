@@ -1,7 +1,9 @@
 main
 main_debug
-*.dat
 plots/*
+plots/**/*.dat
+!plots/_ground_truth/
+!plots/_ground_truth/*.dat
 build/*
 .vscode/*
 CMakeFiles
@@ -11,3 +13,4 @@ Makefile
 bin/*
 CMakeCache.txt
 *.ncu-rep
+
