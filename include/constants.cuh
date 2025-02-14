@@ -4,9 +4,9 @@
 // Performance Optimizing Parameters
 #define GPU true        //else, CPU implementation + GPU dense solver is used
 #define SPARSE true     //else, dense laplace and solver is used
-#define MACCORMACK false //else, semi-lagrange advection is used
-#define BUFFER_SIZE 20 // number of simulation steps before copy to host
-#define TILE_SIZE 16
+#define MACCORMACK true //else, semi-lagrange advection is used
+#define BUFFER_SIZE 60 // number of simulation steps before copy to host
+#define TILE_SIZE 8
 // TILING etc
 // Simulation
 #define NUM_N 64      // Grid size X
