@@ -11,10 +11,14 @@ Public repo: https://github.com/Derk21/taylor-green-parallel-cfd
 
 <table>
   <tr>
-    <th>Simulation</th>
+    <th>Simulation (with mac cormack advection)</th>
+    <th>Simulation (no advection)</th>
     <th>Analytical Solution</th>
   </tr>
   <tr>
+    <td>
+      <img src="progress_documentation/gpu_maccormack_sparse_final.gif" alt="Simulation" width="100%"/>
+    </td>
     <td>
       <img src="progress_documentation/gpu_diffusion_pressure_correction.gif" alt="Simulation" width="100%"/>
     </td>
@@ -22,8 +26,18 @@ Public repo: https://github.com/Derk21/taylor-green-parallel-cfd
       <img src="progress_documentation/ground_truth.gif" alt="Analytical Solution" width="100%"/>
     </td>
   </tr>
+  <tr>
+    <td>
+      <img src="progress_documentation/rmse_final.png" alt="rmse" width="100%"/>
+    </td>
+    <td>
+      <img src="progress_documentation/rmse_no_advection.png" alt="rmse" width="100%"/>
+    </td>
+  </tr>
 </table>
 
+note: simulation with advection is less accurate, probably because of low degree of interpolation
+rmse: of mac
 
 # Requirements
 - cuda
@@ -82,5 +96,7 @@ Pressure Correction:
 
 # References
 https://en.wikipedia.org/wiki/Taylor%E2%80%93Green_vortex
+
 https://github.com/tum-pbs/PhiFlow/
+
 https://tum-pbs.github.io/PhiFlow/examples/grids/Taylor_Green.html
