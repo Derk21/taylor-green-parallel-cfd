@@ -224,16 +224,16 @@ void constructDiscretizedLaplacian(double *laplace_discrete, int n, const double
         int src_x = lp_row % n;
 
         int lp_center = src_y * n + src_x;
-        laplace_discrete[lp_row * n * n + lp_center] = 4.0 / (dx * dx);
+        laplace_discrete[lp_row * n * n + lp_center] = -4.0 / (dx * dx);
         // neighbors
         int up_src = periodic_linear_Idx(src_x, src_y - 1, n, n);
         int down_src = periodic_linear_Idx(src_x, src_y + 1, n, n);
         int left_src = periodic_linear_Idx(src_x - 1, src_y, n, n);
         int right_src = periodic_linear_Idx(src_x + 1, src_y, n, n);
-        laplace_discrete[lp_row * n * n + up_src] = -1.0 * (dx * dx);
-        laplace_discrete[lp_row * n * n + down_src] = -1.0 * (dx * dx);
-        laplace_discrete[lp_row * n * n + left_src] = -1.0 * (dx * dx);
-        laplace_discrete[lp_row * n * n + right_src] = -1.0 * (dx * dx);
+        laplace_discrete[lp_row * n * n + up_src] = 1.0 * (dx * dx);
+        laplace_discrete[lp_row * n * n + down_src] = 1.0 * (dx * dx);
+        laplace_discrete[lp_row * n * n + left_src] = 1.0 * (dx * dx);
+        laplace_discrete[lp_row * n * n + right_src] = 1.0 * (dx * dx);
     }
 }
 
@@ -243,8 +243,8 @@ void constructLaplaceSparseCSR(double *values, int *row_offsets, int *col_indice
     // nonzero count 5 per row -> 5*n*n -> allocate val, offsets, cols accordingly
     //
     // int nnz = 5*n*n;
-    double diag_value = 4.0 / (dx * dx);
-    double neighbor_value = -1.0 / (dx * dx);
+    double diag_value = -4.0 / (dx * dx);
+    double neighbor_value = 1.0 / (dx * dx);
     int current_nnz = 0;
     row_offsets[0] = 0;
     for (int row = 0; row < n * n; row++)
@@ -291,8 +291,8 @@ namespace gpu
         if (global_idx < total_nnz)
         {
 
-            double diag_value = 4.0 / (dx * dx);
-            double neighbor_value = -1.0 / (dx * dx);
+            double diag_value = -4.0 / (dx * dx);
+            double neighbor_value = 1.0 / (dx * dx);
 
             int row = global_idx / 5;
             int local_idx = global_idx % 5; // per row (0-4)
@@ -351,13 +351,13 @@ namespace gpu
             int src_x = lp_idx % n;
 
             int lp_center = src_y * n + src_x;
-            laplace_discrete[lp_idx * n * n + lp_center] = 4.0 / (dx * dx);
+            laplace_discrete[lp_idx * n * n + lp_center] = -4.0 / (dx * dx);
             // neighbors
             int up_src = periodic_linear_Idx(src_x, src_y - 1, n, n);
             int down_src = periodic_linear_Idx(src_x, src_y + 1, n, n);
             int left_src = periodic_linear_Idx(src_x - 1, src_y, n, n);
             int right_src = periodic_linear_Idx(src_x + 1, src_y, n, n);
-            double neighbor_weight = -1.0 * (dx * dx);
+            double neighbor_weight = 1.0 * (dx * dx);
             laplace_discrete[lp_idx * n * n + up_src] = neighbor_weight;
             laplace_discrete[lp_idx * n * n + down_src] = neighbor_weight;
             laplace_discrete[lp_idx * n * n + left_src] = neighbor_weight;
