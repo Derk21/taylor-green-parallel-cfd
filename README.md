@@ -81,7 +81,7 @@ Pressure Correction:
 - end2end gpu, sparse cholesky solver (Buffersize 20): 1.999s
 
 # Practices used from the course
-- shared memory (used in divergence, interpolation and diffusion)
+- shared memory (used in divergence and diffusion)
 - coalescing (only in parts (divergence and interpolation use it partly in shared memory))
 - biggest speedup came from implementation of sparse pressure correction (~5x faster)
 - async Streams (independent Kernels in Mac Cormack Advection)
